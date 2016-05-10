@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 
 Power = Enum("Power", "Bonus Clone Discard Go Poison Rescue Reverse Skip")
 
@@ -8,4 +9,14 @@ class Card:
         denomination = denomination
         power = power
         owner = owner
+
+class DeckFactory:
+
+    def __init__(self):
+        deck = []
+
+    def deck_import(self, json_formatted_deck):
+        """An example deck might look like this:
+
+        """
 
