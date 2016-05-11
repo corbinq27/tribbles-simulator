@@ -4,26 +4,32 @@ import re
 
 Power = Enum("Power", "Bonus Clone Discard Go Poison Rescue Reverse Skip")
 
-class Card:
 
+class Card:
+    """private Class to represent the Card object."""
     def __init__(self, denomination, power, owner):
         self.denomination = denomination
         self.power = power
         self.owner = owner
 
+
 class Owner:
-
+    """private Class to represent the Owner object."""
     def __init__(self, name):
-        name = name
+        self.name = name
 
-class DeckFactory:
 
-    def __init__(self, name):
+class Deck:
+    """Deck"""
+    def __init__(self, name, json_formatted_deck_path=None):
         self.deck = []
         self.owner = Owner(name)
 
+        if json_formatted_deck_path != None:
+            self.deck_import(json_formatted_deck_path)
+
     #TODO: Add a card import verifier to ensure only actual existing tribbles cards are added to a deck.
-    def deck_import(self, json_formatted_deck):
+    def deck_import(self, json_formatted_deck_path):
         """An example deck might look like this:
             {
                 "cards":
@@ -34,6 +40,10 @@ class DeckFactory:
                     ]
             }
         """
+        with open(json_formatted_deck_path, "r") as fp:
+            deck_dict = json.load(fp)
+            for each_item in deck_dict["cards"]:
+                self.deck = self.deck + self.convert_string_to_cards(each_item)
 
     def convert_string_to_cards(self, string):
         """
@@ -49,4 +59,3 @@ class DeckFactory:
             to_return.append(Card(denomination, Power[power], self.owner))
 
         return to_return
-
