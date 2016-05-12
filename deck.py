@@ -59,3 +59,15 @@ class Deck:
             to_return.append(Card(denomination, Power[power], self.owner))
 
         return to_return
+
+    def remove_card(self, card):
+        self.deck.remove(card)
+
+    def add_card(self, card):
+        self.deck.append(card)
+
+    def get_top_card_and_remove_card(self):
+        """
+        Remove the top card of this deck and return it.
+        """
+        return self.deck.pop()

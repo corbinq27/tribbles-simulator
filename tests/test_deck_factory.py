@@ -2,7 +2,7 @@
 
 import unittest
 import os
-from deck_factory import Card, Power, Deck
+from deck import Card, Power, Deck
 
 
 class TestDeckFactory(unittest.TestCase):
@@ -55,7 +55,20 @@ class TestDeckFactory(unittest.TestCase):
 
             self.assertEqual(expected_output, "")
 
+    def test_remove_top_card_object(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        deck = Deck("Some Dude", test_deck_path)
+        deck_size = len(deck.deck)
+        card = deck.deck[0]
+        deck.remove_card(card)
+        self.assertEqual(deck_size, len(deck.deck) + 1)
 
+    def test_remove_top_card_object(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        deck = Deck("Some Dude", test_deck_path)
+        deck_size = len(deck.deck)
+        card = deck.get_top_card_and_remove_card()
+        self.assertEqual(deck_size, len(deck.deck) + 1)
 
 if __name__ == '__main__':
     unittest.main()
