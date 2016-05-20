@@ -70,4 +70,5 @@ class Deck:
         """
         Remove the top card of this deck and return it.
         """
-        return self.deck.pop()
+        return self.deck.pop(0)
+
