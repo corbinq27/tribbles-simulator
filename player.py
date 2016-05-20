@@ -18,6 +18,13 @@ class Player:
 
     #actions the player can take
 
+    def action_draw_card(self):
+        """
+        simply moves the top card of the deck to the hand.
+        """
+        card_to_hand = self.deck.get_top_card_and_remove_card()
+        self.hand.add_card(card_to_hand)
+
     def action_play_card(self, card):
         """
         No checking is done to ensure the playing of the card is legal.
@@ -25,5 +32,14 @@ class Player:
         Finds a copy of the passed in card in self.hand.  removes it from that deck.  adds that card to the top of
         the play pile.
         """
+        card_to_play = self.hand.remove_card(card)
+        self.play_pile.add_card(card_to_play)
 
-
+    def action_get_poisoned(self):
+        """
+        Discard the top card of the deck and return the denomination of the card.
+        """
+        card_to_discard = self.deck.get_top_card_and_remove_card()
+        denomination = card_to_discard.denomination
+        self.discard_pile.add_card(card_to_discard)
+        return denomination
