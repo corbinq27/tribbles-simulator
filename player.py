@@ -44,6 +44,18 @@ class Player:
         self.discard_pile.add_card(card_to_discard)
         return denomination
 
+    def action_use_discard_power(self, card):
+        """
+        The discard power, when executed, discards a card from hand.
+
+        This discards a copy of the card in parameters from hand.  This also assumes the card passed in is actually
+          in hand.  It does NOT check for this.  Normal python exceptions will raise if the card isn't in hand.
+
+        This does NOT force a round end if the hand is now 0 length.
+        """
+        card_removed = self.hand.remove_card(card)
+        self.discard_pile.add_card(card)
+
     def action_end_round(self, round_number, is_out=False):
         """
         discards player's hand. Shuffles play pile into draw deck.

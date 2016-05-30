@@ -100,24 +100,37 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(len(p.deck.deck), size_of_deck - 1)
 
 
-def test_end_round_went_out(self):
-    test_deck_path = os.path.join("..", "decks", "testdeck.json")
-    p = Player("dude", test_deck_path, 5)
+    def test_end_round_went_out(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        p = Player("dude", test_deck_path, 5)
 
-    size_of_deck = len(p.deck.deck)
+        size_of_deck = len(p.deck.deck)
 
-    p.action_draw_card()
+        p.action_draw_card()
 
-    p.action_play_card(p.hand.deck[0])
+        p.action_play_card(p.hand.deck[0])
 
-    denomination_of_play_pile_card = p.play_pile.deck[0].denomination
+        denomination_of_play_pile_card = p.play_pile.deck[0].denomination
 
-    p.action_end_round(1, is_out=True)
+        p.action_end_round(1, is_out=True)
 
-    self.assertEqual(p.score["round1"], denomination_of_play_pile_card)
-    self.assertEqual(len(p.hand.deck), 0)
-    self.assertEqual(len(p.play_pile.deck), 0)
-    self.assertEqual(len(p.deck.deck), size_of_deck)
+        self.assertEqual(p.score["round1"], denomination_of_play_pile_card)
+        self.assertEqual(len(p.hand.deck), 0)
+        self.assertEqual(len(p.play_pile.deck), 0)
+        self.assertEqual(len(p.deck.deck), size_of_deck)
+
+    def test_discard_power(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        p.action_draw_card()
+
+        card_in_hand = p.hand.deck[0]
+
+        p.action_use_discard_power(card_in_hand)
+
+        self.assertEqual(len(p.hand.deck), 0)
+        self.assertEqual(p.discard_pile.deck[0], card_in_hand)
 
 if __name__ == '__main__':
     unittest.main()
