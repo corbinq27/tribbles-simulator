@@ -181,6 +181,20 @@ class TestDeckFactory(unittest.TestCase):
         next_card = Card(1, Power.Go, None)
         self.assertFalse(next_card.is_playable(last_card_played))
 
+    def test_is_actionable_card(self):
+        card = Card(100, Power.Go, None)
+        self.assertTrue(card.is_actionable_power())
+
+        card = Card(1000, Power.Rescue, None)
+        self.assertTrue(card.is_actionable_power())
+
+    def test_negative_is_actionable_card(self):
+        card = Card(1, Power.Clone, None)
+        self.assertFalse(card.is_actionable_power())
+
+        card = Card(1000, Power.Skip, None)
+        self.assertFalse(card.is_actionable_power())
+
 
 if __name__ == '__main__':
     unittest.main()
