@@ -2,6 +2,7 @@ from enum import Enum
 import json
 import re
 import random
+import copy
 
 Power = Enum("Power", "Bonus Clone Discard Go Poison Rescue Reverse Skip")
 
@@ -18,6 +19,13 @@ class Card:
 
     def __str__(self):
          return "Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner)
+
+    def get_card_categorization(self):
+        """
+        returns a string concatenating the denomination and power.  For example, if the card's denomination
+        is 100 and the card's power is Poison, then the string returned will be "100 Power.Poison"
+        """
+        return "%s %s" % (self.denomination, self.power)
 
     def is_actionable_power(self):
         """
@@ -48,6 +56,7 @@ class Card:
             return True
         else:
             return False
+
 
 class Owner:
     """private Class to represent the Owner object."""
@@ -136,3 +145,19 @@ class Deck:
         else:
             random.shuffle(self.deck)
 
+    def get_all_unique_cards(self):
+        """
+        convenience function.  It is useful to get a list of the different type of cards in a deck.  Returns a list
+        of what cards are in this deck without returning a second copy of that card.
+        """
+        to_return = []
+
+        for each_card in self.deck:
+            card_in_to_return = False
+            for every_card in to_return:
+                if each_card.get_card_categorization() == every_card.get_card_categorization():
+                    card_in_to_return = True
+            if card_in_to_return == False:
+                to_return.append(each_card)
+
+        return to_return
