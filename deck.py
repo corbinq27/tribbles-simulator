@@ -13,6 +13,12 @@ class Card:
         self.power = power
         self.owner = owner
 
+    # def __repr__(self):
+    #     print("Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner))
+    #
+    # def __str__(self):
+    #     print("Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner))
+
 
 class Owner:
     """private Class to represent the Owner object."""
@@ -63,6 +69,7 @@ class Deck:
 
     def remove_card(self, card):
         self.deck.remove(card)
+        return card
 
     def add_card(self, card):
         self.deck.append(card)

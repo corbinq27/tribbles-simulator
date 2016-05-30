@@ -25,6 +25,44 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.hand.deck[0].denomination, 100)
         self.assertEqual(p.hand.deck[0].power, Power.Rescue)
 
+    def test_draw_card(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        #what is the top card of the deck?
+        top_card_of_deck = p.deck.deck[0]
+
+        #do the draw
+        p.action_draw_card()
+
+        #that card should now be the only card in the hand deck.
+        self.assertEqual(len(p.hand.deck), 1)
+
+        #it should be the same card as seen before.
+        self.assertEqual(top_card_of_deck, p.hand.get_top_card_and_remove_card())
+
+    def test_play_card(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        # what is the top card of the deck?
+        top_card_of_deck = p.deck.deck[0]
+
+        # do the draw
+        p.action_draw_card()
+
+        # play card in hand
+        p.action_play_card(p.hand.deck[0])
+
+        # hand should be empty
+        self.assertEqual(len(p.hand.deck), 0)
+
+        # play pile should be one card in length
+        self.assertEqual(len(p.play_pile.deck), 1)
+
+        # only card in play pile should be the same card as top_card_of_deck from before
+        self.assertEqual(p.play_pile.get_top_card_and_remove_card(), top_card_of_deck)
+
     def test_get_poisoned(self):
         test_deck_path = os.path.join("..", "decks", "testdeck.json")
         p = Player("dude", test_deck_path, 5)
@@ -39,5 +77,47 @@ class TestPlayer(unittest.TestCase):
         #only card in hand should be the discard pile
         self.assertEqual(p.discard_pile.deck[0].denomination, 100)
         self.assertEqual(p.discard_pile.deck[0].power, Power.Rescue)
+
+    def test_end_round_not_out(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        size_of_deck = len(p.deck.deck)
+
+        p.action_draw_card()
+        p.action_draw_card()
+
+        p.action_play_card(p.hand.deck[0])
+
+        card_in_hand = p.hand.deck[0]
+
+        p.action_end_round(1)
+
+        self.assertEqual(p.score["round1"], 0)
+        self.assertEqual(p.discard_pile.get_top_card_and_remove_card(), card_in_hand)
+        self.assertEqual(len(p.hand.deck), 0)
+        self.assertEqual(len(p.play_pile.deck), 0)
+        self.assertEqual(len(p.deck.deck), size_of_deck - 1)
+
+
+def test_end_round_went_out(self):
+    test_deck_path = os.path.join("..", "decks", "testdeck.json")
+    p = Player("dude", test_deck_path, 5)
+
+    size_of_deck = len(p.deck.deck)
+
+    p.action_draw_card()
+
+    p.action_play_card(p.hand.deck[0])
+
+    denomination_of_play_pile_card = p.play_pile.deck[0].denomination
+
+    p.action_end_round(1, is_out=True)
+
+    self.assertEqual(p.score["round1"], denomination_of_play_pile_card)
+    self.assertEqual(len(p.hand.deck), 0)
+    self.assertEqual(len(p.play_pile.deck), 0)
+    self.assertEqual(len(p.deck.deck), size_of_deck)
+
 if __name__ == '__main__':
     unittest.main()
