@@ -126,6 +126,61 @@ class TestDeckFactory(unittest.TestCase):
                 self.assertIn(str(df.deck[i].power), expected_output[i])
                 self.assertIn(str(df.deck[i].denomination), expected_output[i])
 
+    def test_is_playable_next_denom(self):
+        last_card_played = Card(10, Power.Go, None)
+        next_card = Card(100, Power.Rescue, None)
+        self.assertTrue(next_card.is_playable(last_card_played))
+
+
+    def test_is_playable_one_after_big_money(self):
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(1, Power.Bonus, None)
+        self.assertTrue(next_card.is_playable(last_card_played))
+
+    def test_is_playable_big_clone_after_big_money(self):
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(100000, Power.Clone, None)
+        self.assertTrue(next_card.is_playable(last_card_played))
+
+    def test_is_playable_one_clone_after_big_money(self):
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(1, Power.Clone, None)
+        self.assertTrue(next_card.is_playable(last_card_played))
+
+    def test_is_playable_negative_clone_tests(self):
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(10, Power.Clone, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(100, Power.Clone, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(1000, Power.Clone, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+        last_card_played = Card(100000, Power.Discard, None)
+        next_card = Card(10000, Power.Clone, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+    def test_is_playable_negative_denomination_tests(self):
+        last_card_played = Card(100, Power.Rescue, None)
+        next_card = Card(10, Power.Go, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+        last_card_played = Card(10000, Power.Clone, None)
+        next_card = Card(10000, Power.Rescue, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+        last_card_played = Card(100000, Power.Clone, None)
+        next_card = Card(100000, Power.Rescue, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
+        last_card_played = Card(1, Power.Discard, None)
+        next_card = Card(1, Power.Go, None)
+        self.assertFalse(next_card.is_playable(last_card_played))
+
 
 if __name__ == '__main__':
     unittest.main()

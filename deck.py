@@ -19,6 +19,24 @@ class Card:
     def __str__(self):
          return "Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner)
 
+    def is_playable(self, last_played_card):
+        """
+        Given the last played card, returns True if this card can be played or False if not.
+        * This card can be played if the last card played has a denomination 10 times smaller than this card.
+        * This card can be played if the last card played and this card have the same denomination and this card
+        has a power of clone.
+        * This card can be played if the last card played was denomination 100,000 and this card is denomination 1.
+        """
+        last_denom = last_played_card.denomination
+
+        if self.denomination == (last_denom * 10):
+            return True
+        elif (self.denomination == last_denom) and self.power == Power.Clone:
+            return True
+        elif self.denomination == 1 and last_denom == 100000:
+            return True
+        else:
+            return False
 
 class Owner:
     """private Class to represent the Owner object."""
