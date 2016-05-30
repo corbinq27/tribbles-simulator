@@ -19,6 +19,17 @@ class Card:
     def __str__(self):
          return "Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner)
 
+    def is_actionable_power(self):
+        """
+        Returns true if the power for this card is actionable (that is, the player could cause the player to play an
+         additonal card on his turn because of the card's power.  Currently, the list of actionable powers are Rescue
+         and Go.
+        """
+        if (self.power == Power.Go) or (self.power == Power.Rescue):
+            return True
+        else:
+            return False
+
     def is_playable(self, last_played_card):
         """
         Given the last played card, returns True if this card can be played or False if not.
