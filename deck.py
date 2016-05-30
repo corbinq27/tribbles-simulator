@@ -13,11 +13,11 @@ class Card:
         self.power = power
         self.owner = owner
 
-    # def __repr__(self):
-    #     print("Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner))
-    #
-    # def __str__(self):
-    #     print("Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner))
+    def __repr__(self):
+        return "Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner)
+
+    def __str__(self):
+         return "Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner)
 
 
 class Owner:
@@ -72,7 +72,7 @@ class Deck:
         return card
 
     def add_card(self, card):
-        self.deck.append(card)
+        self.deck.insert(0, card)
 
     def is_empty(self):
         "return True if deck empty. False otherwise."

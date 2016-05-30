@@ -4,7 +4,7 @@ import unittest
 import os
 from player import Player
 from deck import Power
-
+import copy
 
 class TestPlayer(unittest.TestCase):
     """Basic test cases."""
@@ -131,6 +131,26 @@ class TestPlayer(unittest.TestCase):
 
         self.assertEqual(len(p.hand.deck), 0)
         self.assertEqual(p.discard_pile.deck[0], card_in_hand)
+
+    def test_rescue_power(self):
+        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        top_card_of_deck = copy.deepcopy(p.deck.deck[0])
+
+        #make a copy of the top_card_of_deck but make its denomination *10 higher.
+        new_card = copy.deepcopy(p.deck.deck[0])
+
+        new_card.denomination = (top_card_of_deck.denomination * 10)
+
+        p.discard_pile.add_card(new_card)
+
+        p.action_rescue_card(new_card)
+
+        latest_top_card_of_deck = p.deck.get_top_card_and_remove_card()
+        self.assertEqual(latest_top_card_of_deck.denomination, top_card_of_deck.denomination * 10)
+        self.assertEqual(latest_top_card_of_deck.power, top_card_of_deck.power)
+
 
 if __name__ == '__main__':
     unittest.main()

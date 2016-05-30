@@ -49,12 +49,25 @@ class Player:
         The discard power, when executed, discards a card from hand.
 
         This discards a copy of the card in parameters from hand.  This also assumes the card passed in is actually
-          in hand.  It does NOT check for this.  Normal python exceptions will raise if the card isn't in hand.
+          in hand.  It does NOT check for this.  If this occurs, the behavior is undefined.
 
         This does NOT force a round end if the hand is now 0 length.
         """
         card_removed = self.hand.remove_card(card)
         self.discard_pile.add_card(card)
+
+    def action_rescue_card(self, card):
+        """
+        The Rescue power, when executed, returns a card to the top of the deck.  If that card can be played, it may
+        be played if the player so decides.
+
+        This function simply finds a copy of the passed in card from the discard pile and places it on top of the
+        deck.  It does NOT somehow then play that card if it is possible.  It also assumes this action is only
+        executed when the card passed into this function is actually in the discard pile.  If it is not, then the
+        behavior is undefined.
+        """
+        self.discard_pile.remove_card(card)
+        self.deck.add_card(card)
 
     def action_end_round(self, round_number, is_out=False):
         """
