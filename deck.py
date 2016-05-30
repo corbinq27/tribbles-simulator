@@ -1,6 +1,7 @@
 from enum import Enum
 import json
 import re
+import random
 
 Power = Enum("Power", "Bonus Clone Discard Go Poison Rescue Reverse Skip")
 
@@ -66,9 +67,36 @@ class Deck:
     def add_card(self, card):
         self.deck.append(card)
 
+    def is_empty(self):
+        "return True if deck empty. False otherwise."
+        if len(self.deck) > 0:
+            return False
+        if len(self.deck) == 0:
+            return True
+        else:
+            raise ValueError
+
     def get_top_card_and_remove_card(self):
         """
         Remove the top card of this deck and return it.
         """
         return self.deck.pop(0)
+
+    def get_denomination_sum(self):
+        """
+        get the sum total of all of the denominations of the cards in this deck
+        """
+        to_return = 0
+        for each_card in self.deck:
+            to_return += each_card.denomination
+
+        return to_return
+
+    def shuffle(self, seed=None):
+        if seed:
+            random.seed(seed)
+            random.shuffle(self.deck)
+            random.seed()
+        else:
+            random.shuffle(self.deck)
 

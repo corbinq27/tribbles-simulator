@@ -43,3 +43,26 @@ class Player:
         denomination = card_to_discard.denomination
         self.discard_pile.add_card(card_to_discard)
         return denomination
+
+    def end_round(self, round_number, is_out=False):
+        """
+        discards player's hand. Shuffles play pile into draw deck.
+
+        if is_out set to True, then counts the play pile and adds the score from the play pile to this player's
+        score (must pass in proper round_number to accomplish this as well).
+        """
+        if is_out:
+            self.score["round%s" % round_number] = self.play_pile.get_denomination_sum()
+
+        if not self.hand.is_empty():
+            for each_card in len(self.hand):
+                get_card = self.hand.get_top_card_and_remove_card()
+                self.discard_pile.add_card(get_card)
+
+        if not self.play_pile.is_empty():
+            for each_card in len(self.play_pile):
+                get_card = self.play_pile.get_top_card_and_remove_card()
+                self.deck.add_card(get_card)
+            self.deck.shuffle()
+
+
