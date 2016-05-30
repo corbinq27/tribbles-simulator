@@ -195,6 +195,20 @@ class TestDeckFactory(unittest.TestCase):
         card = Card(1000, Power.Skip, None)
         self.assertFalse(card.is_actionable_power())
 
+    def test_all_unique_cards(self):
+        test_deck_path = os.path.join("..", "decks", "smalltestdeck.json")
+        df = Deck("Some Dude", test_deck_path)
+
+        unique_cards = df.get_all_unique_cards()
+
+        categorizations_only = []
+        for each_card in unique_cards:
+            categorizations_only.append(each_card.get_card_categorization())
+
+        expected_categorizations_only_list = ["100 Power.Rescue", "10 Power.Go", "100 Power.Poison", "10000 Power.Go",
+                                              "100000 Power.Clone"]
+
+        self.assertEqual(categorizations_only, expected_categorizations_only_list)
 
 if __name__ == '__main__':
     unittest.main()
