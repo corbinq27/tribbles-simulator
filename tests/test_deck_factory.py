@@ -131,6 +131,10 @@ class TestDeckFactory(unittest.TestCase):
         next_card = Card(100, Power.Rescue, None)
         self.assertTrue(next_card.is_playable(last_card_played))
 
+    def test_is_playable_next_denom_again(self):
+        last_card_played = Card(100, Power.Rescue, None)
+        next_card = Card(1000, Power.Rescue, None)
+        self.assertTrue(next_card.is_playable(last_card_played))
 
     def test_is_playable_one_after_big_money(self):
         last_card_played = Card(100000, Power.Discard, None)
