@@ -157,13 +157,14 @@ class TestPlayer(unittest.TestCase):
 
         for i in range(0, 20):
             p.action_draw_card()
-            print("Drawing %s Tribbles %s" % (p.hand.deck[0].denomination, p.hand.deck[0].power))
 
         p.discard_pile.add_card(Card(1000, Power.Rescue, "none"))
         p.discard_pile.add_card(Card(10000, Power.Go, "none"))
 
-        tree = p.state_of_all_deterministic_actions(Card(1, Power.Go, "nobody"))
-        print(tree.print_this_tree(tree))
+        current_card = Card(1, Power.Go, "nobody")
+
+        tree = p.state_of_all_deterministic_actions(current_card)
+        tree.print_this_tree()
 
 
 if __name__ == '__main__':

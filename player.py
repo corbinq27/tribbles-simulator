@@ -44,7 +44,7 @@ class Player:
 
 
 
-        for each_card in self.hand.deck:
+        for each_card in self.hand.get_all_unique_cards():
             if each_card.is_playable(last_card_played):
                 player_state = copy.deepcopy(self)
                 card_played = copy.deepcopy(each_card)
@@ -69,47 +69,22 @@ class Player:
 
                 for each_card in last_player_state.discard_pile.get_all_unique_cards():
                     if each_card.is_playable(last_played_card):
-                        print("each card: %s %s" % (each_card.denomination, each_card.power))
-                        print("last played card: %s %s" % (last_played_card.denomination, last_played_card.power))
+
                         last_player_state.action_play_card_from_discard_pile(each_card)
-                        new_node = GameStateNode(each_card, last_player_state)
                         card_played = copy.deepcopy(each_card)
-                        node.add_child(GameStateNode(card_played, last_player_state))
+                        new_node = GameStateNode(card_played, last_player_state)
+
+                        node.add_child(new_node)
                         self._populate_children_for_node(new_node)
         if last_player_state.additional_action == Power.Go:
             if not last_player_state.hand.is_empty():
                 for each_card in last_player_state.hand.get_all_unique_cards():
                     if each_card.is_playable(last_played_card):
                         last_player_state.action_play_card(each_card)
-                        new_node = GameStateNode(each_card, last_player_state)
                         card_played = copy.deepcopy(each_card)
-                        node.add_child(GameStateNode(card_played, last_player_state))
+                        new_node = GameStateNode(card_played, last_player_state)
+                        node.add_child(new_node)
                         self._populate_children_for_node(new_node)
-
-
-    # def _populate_actionable_followup(self, game_node):
-    #     for each_child in game_node.depth_first():
-    #         last_played_card = each_child.value[0]
-    #         last_player_state = each_child.value[1]
-    #         if last_player_state.additional_action == Power.Rescue:
-    #             for each_card in last_player_state.discard_pile.get_all_unique_cards():
-    #                 if each_card.is_playable(last_played_card):
-    #                     last_player_state.action_play_card_from_discard_pile(each_card)
-    #                     copy_player = copy.deepcopy(last_player_state)
-    #                     new_node = GameStateNode(each_card, copy_player)
-    #                     game_node.add_child(GameStateNode(each_card, copy_player))
-    #                     self._populate_actionable_followup(new_node)
-    #         if last_player_state.additional_action == Power.Go:
-    #             for each_card in last_player_state.hand.get_all_unique_cards():
-    #                 if each_card.is_playable(last_played_card):
-    #                     last_player_state.action_play_card(each_card)
-    #                     copy_player = copy.deepcopy(last_player_state)
-    #                     new_node = GameStateNode(each_card, copy_player)
-    #                     game_node.add_child(GameStateNode(each_card, copy_player))
-    #                     self._populate_actionable_followup(new_node)
-    #         return game_node
-
-
 
     #actions the player can take
 
@@ -139,6 +114,8 @@ class Player:
         self.play_pile.add_card(card_to_play)
         if card_to_play.is_actionable_power():
             self.additional_action = card_to_play.power
+        else:
+            self.additional_action = None
 
     def action_play_card_from_discard_pile(self, card):
         """
@@ -234,14 +211,16 @@ class GameStateNode:
         for c in self:
             yield from c.depth_first()
 
-    def print_this_tree(self, node, level=0):
-        if node.get_card():
-            print("\t"*level + "%s Tribbles %s" % (node.get_card().denomination, node.get_card().power))
+    def print_this_tree(self, level=0):
+        if self.get_card():
+            print("\t"*level + "%s Tribbles %s" % (self.get_card().denomination, self.get_card().power))
 
-        if node.children:
-            for each_child in node.children:
-                lvl = level
-                lvl += 1
-                self.print_this_tree(each_child, lvl)
+        if self.children:
+            lvl = level
+            lvl += 1
+            for each_child in self.children:
+
+                each_child.print_this_tree(lvl)
+
 
 
