@@ -3,7 +3,7 @@
 import unittest
 import os
 from player import Player
-from deck import Power
+from deck import Power, Card
 import copy
 
 class TestPlayer(unittest.TestCase):
@@ -150,6 +150,21 @@ class TestPlayer(unittest.TestCase):
         latest_top_card_of_deck = p.deck.get_top_card_and_remove_card()
         self.assertEqual(latest_top_card_of_deck.denomination, top_card_of_deck.denomination * 10)
         self.assertEqual(latest_top_card_of_deck.power, top_card_of_deck.power)
+
+    def test_state_of_all_deterministic_actions(self):
+        test_deck_path = os.path.join("..", "decks", "test_tree_deck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        for i in range(0, 20):
+            p.action_draw_card()
+
+        p.discard_pile.add_card(Card(1000, Power.Rescue, "none"))
+        p.discard_pile.add_card(Card(10000, Power.Go, "none"))
+
+        current_card = Card(1, Power.Go, "nobody")
+
+        tree = p.state_of_all_deterministic_actions(current_card)
+        tree.print_this_tree()
 
 
 if __name__ == '__main__':

@@ -33,14 +33,11 @@ class Card:
          additonal card on his turn because of the card's power.  Currently, the list of actionable powers are Rescue
          and Go.
         """
-        if (self.power == Power.Go) or (self.power == Power.Rescue):
-            return True
-        else:
-            return False
+        return self.power == Power.Go or self.power == Power.Rescue
 
     def is_playable(self, last_played_card):
         """
-        Given the last played card, returns True if this card can be played or False if not.
+        Given the last played card within the game, returns True if this card can be played or False if not.
         * This card can be played if the last card played has a denomination 10 times smaller than this card.
         * This card can be played if the last card played and this card have the same denomination and this card
         has a power of clone.
@@ -106,8 +103,10 @@ class Deck:
         return to_return
 
     def remove_card(self, card):
-        self.deck.remove(card)
-        return card
+        for each_card in self.deck:
+            if (each_card.denomination == card.denomination) and (each_card.power == card.power):
+                self.deck.remove(each_card)
+                return each_card
 
     def add_card(self, card):
         self.deck.insert(0, card)
@@ -159,5 +158,16 @@ class Deck:
                     card_in_to_return = True
             if card_in_to_return == False:
                 to_return.append(each_card)
+
+        return to_return
+
+    def pretty_print(self):
+        "returns a string represeentation of the deck"
+        to_return = ""
+        for each_card in self.deck:
+            if each_card.denomination == 1:
+                to_return += "%s Tribble %s, \r\n" % (each_card.denomination, each_card.power)
+            else:
+                to_return += "%s Tribbles %s, \r\n" % (each_card.denomination, each_card.power)
 
         return to_return
