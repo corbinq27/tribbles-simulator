@@ -86,6 +86,26 @@ class Player:
                         node.add_child(new_node)
                         self._populate_children_for_node(new_node)
 
+    def get_state_minimum_cards_in_hand(self, last_card_played, expected_value_of_poison):
+        """
+        Finds all the deterministic states the player can be in.  Looking only at
+        nodes at the end of the tree (The nodes where the player has no more possible
+        moves), returns the node where the player has the fewest cards in hand, the most
+        expected bonus points, and, If a tie is determined the state where the most points put into the
+        play pile is performed.  If a tie is determined, then the state with the most
+        cards in the discard pile.  If a tie is still determined, then the node
+        will be determined randomly from the final tie.
+        :return:
+        """
+        tree = self.state_of_all_deterministic_actions(last_card_played)
+        #get a list of all of the end nodes.
+
+
+
+        all_possible_moves = self.state_of_all_deterministic_actions(last_card_played)
+        current_cards_in_hand = len(self.hand.deck)
+        current_score = self.get_players_score()
+
     #actions the player can take
 
     def action_draw_card(self):
@@ -186,6 +206,16 @@ class Player:
                 self.deck.add_card(get_card)
             self.deck.shuffle()
 
+    ####### helper methods
+
+    def get_players_score(self):
+        score_to_return = 0
+        for round_number, score in self.score.items():
+            score_to_return += score
+
+        return score_to_return
+
+
 class GameStateNode:
     def __init__(self, card, player):
         self.value = (card, player)
@@ -210,6 +240,22 @@ class GameStateNode:
         yield self
         for c in self:
             yield from c.depth_first()
+
+    def get_all_end_nodes(self):
+        """
+        returns a list of all of the end nodes (leaf nodes) of this tree.
+        """
+        to_return = []
+        self.get_all_end_nodes_internal(to_return)
+        return to_return
+
+    def get_all_end_nodes_internal(self, rlist):
+        if not self.children:
+            rlist.append(self)
+        else:
+            for each_child in self.children:
+                each_child.get_all_end_nodes_internal(rlist)
+
 
     def print_this_tree(self, level=0):
         if self.get_card():

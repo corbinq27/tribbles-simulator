@@ -3,7 +3,7 @@
 import unittest
 import os
 from player import Player
-from deck import Power, Card
+from deck import Power, Card, Deck
 import copy
 
 class TestPlayer(unittest.TestCase):
@@ -165,6 +165,51 @@ class TestPlayer(unittest.TestCase):
 
         tree = p.state_of_all_deterministic_actions(current_card)
         tree.print_this_tree()
+
+    def test_get_all_end_nodes(self):
+        """
+        This tree is expected to have four "end nodes."  We go through
+        and create a list of the same cards and remove each from a deck
+        made of the end node cards.  If the deck is empty then the test passes.
+        :return:
+        """
+        test_deck_path = os.path.join("..", "decks", "test_tree_deck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        for i in range(0, 20):
+            p.action_draw_card()
+
+        p.discard_pile.add_card(Card(1000, Power.Rescue, "dude"))
+        p.discard_pile.add_card(Card(10000, Power.Go, "dude"))
+
+        current_card = Card(1, Power.Go, "dude")
+
+        tree = p.state_of_all_deterministic_actions(current_card)
+        list_of_end_nodes = tree.get_all_end_nodes()
+        deck_of_cards_in_end_nodes = Deck("dude")
+        for each_node in list_of_end_nodes:
+            deck_of_cards_in_end_nodes.add_card(each_node.value[0])
+
+        self.assertEqual(len(list_of_end_nodes), 4)
+        list_of_expected_cards = [Card(10000, Power.Rescue, "dude"),
+                                  Card(100000, Power.Clone, "dude"),
+                                  Card(100000, Power.Clone, "dude"),
+                                  Card(100, Power.Poison, "dude")]
+
+        for each_card in list_of_expected_cards:
+            deck_of_cards_in_end_nodes.remove_card(each_card)
+
+        self.assertTrue(deck_of_cards_in_end_nodes.is_empty())
+
+    def test_get_players_score(self):
+        p = Player("what", None, 5)
+        p.score["round1"] = 100
+        p.score["round2"] = 1000
+        p.score["round3"] = 10000
+        p.score["round4"] = 1
+        p.score["round5"] = 100000
+
+        self.assertEqual(p.get_players_score(), 111101)
 
 
 if __name__ == '__main__':
