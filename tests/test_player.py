@@ -163,8 +163,18 @@ class TestPlayer(unittest.TestCase):
 
         current_card = Card(1, Power.Go, "nobody")
 
-        tree = p.state_of_all_deterministic_actions(current_card)
+        tree = p.state_of_all_deterministic_actions(current_casrd)
         tree.print_this_tree()
+
+    def test_get_players_score(self):
+        p = Player("what", None, 5)
+        p.score["round1"] = 100
+        p.score["round2"] = 1000
+        p.score["round3"] = 10000
+        p.score["round4"] = 1
+        p.score["round5"] = 100000
+
+        self.assertEqual(p.get_players_score(), 111101)
 
 
 if __name__ == '__main__':
