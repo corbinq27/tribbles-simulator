@@ -86,6 +86,7 @@ class Player:
                         node.add_child(new_node)
                         self._populate_children_for_node(new_node)
 
+
     #actions the player can take
 
     def action_draw_card(self):
@@ -185,6 +186,16 @@ class Player:
                 get_card = self.play_pile.get_top_card_and_remove_card()
                 self.deck.add_card(get_card)
             self.deck.shuffle()
+
+    ####### helper methods
+
+    def get_players_score(self):
+        score_to_return = 0
+        for round_number, score in self.score.items():
+            score_to_return += score
+
+        return score_to_return
+
 
 class GameStateNode:
     def __init__(self, card, player):
