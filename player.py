@@ -1,6 +1,7 @@
 from deck import Deck, Card, Power
 import copy
 import sys
+import random
 
 class Player:
 
@@ -91,20 +92,40 @@ class Player:
         Finds all the deterministic states the player can be in.  Looking only at
         nodes at the end of the tree (The nodes where the player has no more possible
         moves), returns the node where the player has the fewest cards in hand, the most
-        expected bonus points, and, If a tie is determined the state where the most points put into the
-        play pile is performed.  If a tie is determined, then the state with the most
-        cards in the discard pile.  If a tie is still determined, then the node
+        expected bonus points, and, If a tie is determined, then then the state with the most
+        cards in the discard pile is chosen.  If a tie remains, then the state with the
+        largest sum of denominations in the play pile is performed. If a tie is still determined, then the node
         will be determined randomly from the final tie.
-        :return:
         """
         tree = self.state_of_all_deterministic_actions(last_card_played)
         #get a list of all of the end nodes.
 
+        list_of_all_final_outcomes = tree.get_all_end_nodes()
 
+        best_state = list_of_all_final_outcomes[0]
 
-        all_possible_moves = self.state_of_all_deterministic_actions(last_card_played)
-        current_cards_in_hand = len(self.hand.deck)
-        current_score = self.get_players_score()
+        for each_state in list_of_all_final_outcomes:
+            each_state_player_object = each_state.value[1]
+            best_state_player_object = best_state.value[1]
+            if len(each_state_player_object.hand.deck) < len(best_state_player_object.hand.deck):
+                best_state = each_state
+            elif len(each_state_player_object.hand.deck) == len(best_state_player_object.hand.deck):
+                if each_state_player_object.additional_action == Power.Poison:
+                    poison_value = expected_value_of_poison
+                else:
+                    poison_value = 0
+                if (each_state_player_object.get_players_score() + poison_value) > best_state_player_object.get_players_score():
+                    best_state = each_state
+                elif each_state_player_object.get_players_score() == best_state_player_object.get_players_score():
+                    if len(each_state_player_object.discard_pile.deck) > len(best_state_player_object.discard_pile.deck):
+                        best_state = each_state
+                    elif each_state_player_object.play_pile.get_denomination_sum() > best_state_player_object.play_pile.get_denomination_sum():
+                        best_state = each_state
+                    elif each_state_player_object.play_pile.get_denomination_sum == best_state_player_object.play_pile.get_denomination_sum():
+                        if random.randrange(2) == 0: #simulate a coin flip.
+                            best_state = each_state
+
+        return best_state
 
     #actions the player can take
 
@@ -134,6 +155,8 @@ class Player:
         self.play_pile.add_card(card_to_play)
         if card_to_play.is_actionable_power():
             self.additional_action = card_to_play.power
+        elif card_to_play.power == Power.Poison:
+            self.additional_action = Power.Poison
         else:
             self.additional_action = None
 

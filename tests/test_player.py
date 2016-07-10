@@ -201,6 +201,27 @@ class TestPlayer(unittest.TestCase):
 
         self.assertTrue(deck_of_cards_in_end_nodes.is_empty())
 
+    def test_get_state_minimum_cards_in_hand(self):
+        """
+        This tree is expected to have four "end nodes."  We go through
+        and create a list of the same cards and remove each from a deck
+        made of the end node cards.  If the deck is empty then the test passes.
+        :return:
+        """
+        test_deck_path = os.path.join("..", "decks", "test_tree_deck.json")
+        p = Player("dude", test_deck_path, 5)
+
+        for i in range(0, 20):
+            p.action_draw_card()
+
+        p.discard_pile.add_card(Card(1000, Power.Rescue, "dude"))
+        p.discard_pile.add_card(Card(10000, Power.Go, "dude"))
+
+        current_card = Card(1, Power.Go, "dude")
+        best_state = p.get_state_minimum_cards_in_hand(current_card, 6666)
+
+        self.assertEqual(131110, best_state.value[1].play_pile.get_denomination_sum())
+
     def test_get_players_score(self):
         p = Player("what", None, 5)
         p.score["round1"] = 100
