@@ -13,6 +13,13 @@ class TestDeckFactory(unittest.TestCase):
         c = Card(1, p, None)
         self.assertTrue(c)
 
+    def test_card_copy(self):
+        c = Card(1, Power.Poison, "John")
+        ccopy = c.get_copy()
+        self.assertEqual(ccopy.denomination, 1)
+        self.assertEqual(ccopy.power, Power.Poison)
+        self.assertEqual(ccopy.owner, "John")
+
     def test_card_from_string_function(self):
 
         df = Deck("TestName")
@@ -26,7 +33,7 @@ class TestDeckFactory(unittest.TestCase):
 
     def test_deck_import(self):
         df = Deck("Some Dude")
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         df.deck_import(test_deck_path)
 
         test_output_path = os.path.join("..", "decks", "testdeckimport.txt")
@@ -39,10 +46,26 @@ class TestDeckFactory(unittest.TestCase):
 
             self.assertEqual(expected_output, "")
 
+    def test_deck_import_then_copy(self):
+        df = Deck("Some Dude")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        df.deck_import(test_deck_path)
+        dcopy = df.get_copy()
+
+        test_output_path = os.path.join("..", "decks", "testdeckimport.txt")
+        with open(test_output_path, "r") as fp:
+            expected_output = fp.read()
+
+            for each_card in dcopy.deck:
+                card = "%s tribbles %s\n" % (each_card.denomination, each_card.power)
+                expected_output = expected_output.replace(card, "")
+
+            self.assertEqual(expected_output, "")
+
 
     def test_deck_import_on_init(self):
 
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         df = Deck("Some Dude", test_deck_path)
 
         test_output_path = os.path.join("..", "decks", "testdeckimport.txt")
@@ -56,7 +79,7 @@ class TestDeckFactory(unittest.TestCase):
             self.assertEqual(expected_output, "")
 
     def test_remove_top_card_object(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         deck = Deck("Some Dude", test_deck_path)
         deck_size = len(deck.deck)
         card = deck.deck[0]
@@ -64,7 +87,7 @@ class TestDeckFactory(unittest.TestCase):
         self.assertEqual(deck_size, len(deck.deck) + 1)
 
     def test_remove_top_card_object(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         deck = Deck("Some Dude", test_deck_path)
         deck_size = len(deck.deck)
         card = deck.get_top_card_and_remove_card()
@@ -75,12 +98,12 @@ class TestDeckFactory(unittest.TestCase):
         self.assertTrue(df.is_empty())
 
     def test_deck_not_empty(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         df = Deck("Some Dude", test_deck_path)
         self.assertFalse(df.is_empty())
 
     def test_deck_empty_after_filling(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         df = Deck("Some Dude", test_deck_path)
         self.assertFalse(df.is_empty())
         while not df.is_empty():
@@ -94,14 +117,14 @@ class TestDeckFactory(unittest.TestCase):
         self.assertEqual(deck_value, 140610)
 
     def test_shuffle_retains_deck_length(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         deck = Deck("Some Dude", test_deck_path)
         deck_size = len(deck.deck)
         deck.shuffle()
         self.assertEqual(deck_size, len(deck.deck))
 
     def test_deck_retains_integrity_after_shuffle(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         df = Deck("Some Dude", test_deck_path)
         df.shuffle()
 
@@ -110,6 +133,22 @@ class TestDeckFactory(unittest.TestCase):
             expected_output = fp.read()
 
             for each_card in df.deck:
+                card = "%s tribbles %s\n" % (each_card.denomination, each_card.power)
+                expected_output = expected_output.replace(card, "")
+
+            self.assertEqual(expected_output, "")
+
+    def test_deck_retains_integrity_after_shuffle_after_copy(self):
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        df = Deck("Some Dude", test_deck_path)
+        dcopy = df.get_copy()
+        dcopy.shuffle()
+
+        test_output_path = os.path.join("..", "decks", "testdeckimport.txt")
+        with open(test_output_path, "r") as fp:
+            expected_output = fp.read()
+
+            for each_card in dcopy.deck:
                 card = "%s tribbles %s\n" % (each_card.denomination, each_card.power)
                 expected_output = expected_output.replace(card, "")
 
@@ -198,6 +237,12 @@ class TestDeckFactory(unittest.TestCase):
 
         card = Card(1000, Power.Skip, None)
         self.assertFalse(card.is_actionable_power())
+
+    def test_order_of_deck_after_copy(self):
+        test_deck_path = os.path.join("..", "decks", "smalltestdeck.json")
+        df = Deck("Some Dude", test_deck_path)
+        dcopy = df.get_copy()
+        self.assertEqual(df.pretty_print(), dcopy.pretty_print())
 
     def test_all_unique_cards(self):
         test_deck_path = os.path.join("..", "decks", "smalltestdeck.json")

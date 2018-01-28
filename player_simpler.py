@@ -3,8 +3,8 @@ import copy
 import sys
 import random
 
-
 class Player:
+
     def __init__(self, name, deck_file_path, number_of_rounds):
         self.name = name
         self.deck = Deck(self.name, deck_file_path)
@@ -13,32 +13,42 @@ class Player:
         self.discard_pile = Deck(self.name)
         self.out_of_play_pile = Deck(self.name)
         self.can_go_out = False
-        self.last_played_card_denomination = 0
-        self.last_played_card_power = None
-        self._number_of_rounds = number_of_rounds
         self.additional_action = None
 
         self.score = {}
-        for i in range(0, self._number_of_rounds):
-            self.score["round%s" % (i + 1)] = 0  # { "round1" : 0, "round2" : 0}
+        for i in range(0, number_of_rounds):
+            self.score["round%s" % (i+1)] = 0 # { "round1" : 0, "round2" : 0}
 
-    # methods to get the state of a player
+    #methods to get the state of a player
 
-    def state_of_all_deterministic_actions(self, last_card_played, is_chain_broken=False):
+    def state_all_possible_actions(self, last_played_card):
+        """
+        Returns a list of all possible actions the player can take.
+        Possible Actions:
+        DRAW_A_CARD: the player has more than one card in his deck.
+        PLAY_A_CARD: given the last played card, this is returned if the player has a legal card to play.
+        CAN_GO_OUT: given the last played card, this is returned if the player can empty his hand.  This will go through
+                    all of the actions available to him in a single turn, and if he can deterministically empty his
+                    hand, this is returned.
+
+        """
+        pass #TODO
+
+    def state_of_all_deterministic_actions(self, last_card_played):
         """
         Creates a tree of tuples of the form (card_played, player) where a tuple represents the card played and the
         player object that would exist after that card is played.  We generate the entire tree of all deterministic
         actions and return it.
         """
-        root = GameStateNode(None, self)  # The tree begins with a root node with only the current player's state
-        # The None represents that the player hasn't played a card yet.
+        root = GameStateNode(None, self) #The tree begins with a root node with only the current player's state
+                                         #The None represents that the player hasn't played a card yet.
 
 
 
         for each_card in self.hand.get_all_unique_cards():
-            if each_card.is_playable(last_card_played, is_chain_broken):
-                player_state = self.get_copy()
-                card_played = each_card.get_copy()
+            if each_card.is_playable(last_card_played):
+                player_state = copy.deepcopy(self)
+                card_played = copy.deepcopy(each_card)
                 player_state.action_play_card(card_played)
 
                 root.add_child(GameStateNode(card_played, player_state))
@@ -52,16 +62,17 @@ class Player:
         return root
 
     def _populate_children_for_node(self, node):
-        last_played_card = node.value[0].get_copy()
-        last_player_state = node.value[1].get_copy()
+        last_played_card = copy.deepcopy(node.value[0])
+        last_player_state = copy.deepcopy(node.value[1])
         if last_player_state.additional_action == Power.Rescue:
 
             if not last_player_state.discard_pile.is_empty():
 
                 for each_card in last_player_state.discard_pile.get_all_unique_cards():
                     if each_card.is_playable(last_played_card):
+
                         last_player_state.action_play_card_from_discard_pile(each_card)
-                        card_played = each_card.get_copy()
+                        card_played = copy.deepcopy(each_card)
                         new_node = GameStateNode(card_played, last_player_state)
 
                         node.add_child(new_node)
@@ -71,12 +82,12 @@ class Player:
                 for each_card in last_player_state.hand.get_all_unique_cards():
                     if each_card.is_playable(last_played_card):
                         last_player_state.action_play_card(each_card)
-                        card_played = each_card.get_copy()
+                        card_played = copy.deepcopy(each_card)
                         new_node = GameStateNode(card_played, last_player_state)
                         node.add_child(new_node)
                         self._populate_children_for_node(new_node)
 
-    def get_state_minimum_cards_in_hand(self, last_card_played, expected_value_of_poison, is_chain_broken=False):
+    def get_state_minimum_cards_in_hand(self, last_card_played, expected_value_of_poison):
         """
         Finds all the deterministic states the player can be in.  Looking only at
         nodes at the end of the tree (The nodes where the player has no more possible
@@ -86,8 +97,8 @@ class Player:
         largest sum of denominations in the play pile is performed. If a tie is still determined, then the node
         will be determined randomly from the final tie.
         """
-        tree = self.state_of_all_deterministic_actions(last_card_played, is_chain_broken)
-        # get a list of all of the end nodes.
+        tree = self.state_of_all_deterministic_actions(last_card_played)
+        #get a list of all of the end nodes.
 
         list_of_all_final_outcomes = tree.get_all_end_nodes()
 
@@ -103,27 +114,20 @@ class Player:
                     poison_value = expected_value_of_poison
                 else:
                     poison_value = 0
-                if (
-                    each_state_player_object.get_players_score() + poison_value) > best_state_player_object.get_players_score():
+                if (each_state_player_object.get_players_score() + poison_value) > best_state_player_object.get_players_score():
                     best_state = each_state
                 elif each_state_player_object.get_players_score() == best_state_player_object.get_players_score():
-                    if len(each_state_player_object.discard_pile.deck) > len(
-                            best_state_player_object.discard_pile.deck):
+                    if len(each_state_player_object.discard_pile.deck) > len(best_state_player_object.discard_pile.deck):
                         best_state = each_state
                     elif each_state_player_object.play_pile.get_denomination_sum() > best_state_player_object.play_pile.get_denomination_sum():
                         best_state = each_state
                     elif each_state_player_object.play_pile.get_denomination_sum == best_state_player_object.play_pile.get_denomination_sum():
-                        if random.randrange(2) == 0:  # simulate a coin flip.
+                        if random.randrange(2) == 0: #simulate a coin flip.
                             best_state = each_state
 
-        if len(tree.children) > 0:
-            top_play_card = best_state.value[1].play_pile.get_top_card_and_remove_card()
-            best_state.value[1].last_played_card_denomination = top_play_card.denomination
-            best_state.value[1].last_played_card_power = top_play_card.power
-            best_state.value[1].play_pile.add_card(top_play_card)
         return best_state
 
-    # actions the player can take
+    #actions the player can take
 
     def action_draw_card(self):
         """
@@ -204,12 +208,6 @@ class Player:
         self.discard_pile.remove_card(card)
         self.deck.add_card(card)
 
-    def action_end_turn(self):
-        """
-        Resets the player's addtional_action to None.  Does NOT draw a card.
-        """
-        self.additional_action = None
-
     def action_end_round(self, round_number, is_out=False):
         """
         discards player's hand. Shuffles play pile into draw deck.
@@ -239,33 +237,6 @@ class Player:
             score_to_return += score
 
         return score_to_return
-
-    def get_copy(self):
-        """returns a new instance of this Player class in the same state as itself."""
-        player_properties = {}
-        player_properties["name"] = self.name
-        player_properties["number_of_rounds"] = self._number_of_rounds
-        player_properties["can_go_out"] = self.can_go_out
-        player_properties["additional_action"] = self.additional_action
-        player_properties["last_card_played_denomination"] = self.last_played_card_denomination
-        player_properties["last_played_card_power"] = self.last_played_card_power
-        player_properties["score"] = self.score
-
-        player_to_return = Player(player_properties["name"], None, 0)
-        player_to_return.name = player_properties["name"]
-        player_to_return.deck = self.deck.get_copy()
-        player_to_return.hand = self.hand.get_copy()
-        player_to_return.play_pile = self.play_pile.get_copy()
-        player_to_return.discard_pile = self.discard_pile.get_copy()
-        player_to_return.out_of_play_pile = self.out_of_play_pile.get_copy()
-        player_to_return.can_go_out = player_properties["can_go_out"]
-        player_to_return.additional_action = player_properties["additional_action"]
-        player_to_return.last_played_card_denomination = player_properties["last_card_played_denomination"]
-        player_to_return.last_played_card_power = player_properties["last_played_card_power"]
-        for key, value in self.score.items():
-            player_to_return.score[key] = value
-
-        return player_to_return
 
 
 class GameStateNode:
@@ -308,14 +279,16 @@ class GameStateNode:
             for each_child in self.children:
                 each_child.get_all_end_nodes_internal(rlist)
 
+
     def print_this_tree(self, level=0):
         if self.get_card():
-            print("\t" * level + "%s Tribbles %s" % (self.get_card().denomination, self.get_card().power))
+            print("\t"*level + "%s Tribbles %s" % (self.get_card().denomination, self.get_card().power))
 
         if self.children:
             lvl = level
             lvl += 1
             for each_child in self.children:
+
                 each_child.print_this_tree(lvl)
 
 

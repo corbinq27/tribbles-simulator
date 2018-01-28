@@ -2,6 +2,7 @@ from enum import Enum
 import json
 import re
 import random
+import math
 import copy
 
 Power = Enum("Power", "Bonus Clone Discard Go Poison Rescue Reverse Skip")
@@ -20,6 +21,7 @@ class Card:
     def __str__(self):
          return "Card Instance. Power: %s Denom: %s Owner: %s" % (self.power, self.denomination, self.owner)
 
+
     def get_card_categorization(self):
         """
         returns a string concatenating the denomination and power.  For example, if the card's denomination
@@ -35,15 +37,24 @@ class Card:
         """
         return self.power == Power.Go or self.power == Power.Rescue
 
-    def is_playable(self, last_played_card):
+    def is_playable(self, last_played_card, is_chain_broken=False):
         """
         Given the last played card within the game, returns True if this card can be played or False if not.
+        a 1 can also be played if the chain was broken.
         * This card can be played if the last card played has a denomination 10 times smaller than this card.
         * This card can be played if the last card played and this card have the same denomination and this card
         has a power of clone.
         * This card can be played if the last card played was denomination 100,000 and this card is denomination 1.
+        * This card can be played if the last card played is a None object and this card is denomincation 1.
         """
-        last_denom = last_played_card.denomination
+        last_denom = None
+        if last_played_card is None:
+            if self.denomination == 1:
+                return True
+            else:
+                return False
+        else:
+            last_denom = last_played_card.denomination
 
         if self.denomination == (last_denom * 10):
             return True
@@ -51,21 +62,22 @@ class Card:
             return True
         elif self.denomination == 1 and last_denom == 100000:
             return True
+        elif is_chain_broken and self.denomination == 1:
+            return True
         else:
             return False
 
-
-class Owner:
-    """private Class to represent the Owner object."""
-    def __init__(self, name):
-        self.name = name
-
+    def get_copy(self):
+        """return a new instance of this card in the same state as this card"""
+        d = {"denomination": self.denomination, "power": self.power, "owner": self.owner}
+        card_to_return = Card(d["denomination"], d["power"], d["owner"])
+        return card_to_return
 
 class Deck:
     """Deck"""
     def __init__(self, name, json_formatted_deck_path=None):
         self.deck = []
-        self.owner = Owner(name)
+        self.owner = name
 
         if json_formatted_deck_path != None:
             self.deck_import(json_formatted_deck_path)
@@ -126,6 +138,15 @@ class Deck:
         """
         return self.deck.pop(0)
 
+    def get_top_card_of_deck(self):
+        """
+        Peek at the top card of the deck.  Return None if the deck is empty.
+        """
+        if self.is_empty():
+            return None
+        else:
+            return self.deck[0]
+
     def get_denomination_sum(self):
         """
         get the sum total of all of the denominations of the cards in this deck
@@ -135,6 +156,17 @@ class Deck:
             to_return += each_card.denomination
 
         return to_return
+
+    def get_expected_poison_value(self):
+        """
+        get the sum of all of the denominations of the cards in the deck over the number
+        of cards in the deck as an integer rounded up.
+        """
+        try:
+            value_to_return = int(math.ceil(self.get_denomination_sum() / len(self.deck)))
+        except ZeroDivisionError:
+            value_to_return = 0
+        return value_to_return
 
     def shuffle(self, seed=None):
         if seed:
@@ -161,13 +193,36 @@ class Deck:
 
         return to_return
 
-    def pretty_print(self):
-        "returns a string represeentation of the deck"
+    def pretty_print(self, number_to_print=None):
+        """
+        returns a string represeentation of the deck.  If only a certain number are desired to
+        be printed, it can be specified.
+        """
         to_return = ""
-        for each_card in self.deck:
-            if each_card.denomination == 1:
-                to_return += "%s Tribble %s, \r\n" % (each_card.denomination, each_card.power)
-            else:
-                to_return += "%s Tribbles %s, \r\n" % (each_card.denomination, each_card.power)
+        if number_to_print:
+            for each_card in self.deck[:number_to_print]:
+                if each_card.denomination == 1:
+                    to_return += "%s Tribble %s, \r\n" % (each_card.denomination, each_card.power)
+                else:
+                    to_return += "%s Tribbles %s, \r\n" % (each_card.denomination, each_card.power)
+
+        else:
+
+            for each_card in self.deck:
+                if each_card.denomination == 1:
+                    to_return += "%s Tribble %s, \r\n" % (each_card.denomination, each_card.power)
+                else:
+                    to_return += "%s Tribbles %s, \r\n" % (each_card.denomination, each_card.power)
 
         return to_return
+
+    def get_copy(self):
+        """Return a new instance of this deck class in the same state as itself"""
+        deck_to_return = []
+        for each_card in self.deck:
+            deck_to_return.append(each_card.get_copy())
+        dic = {"owner": self.owner}
+        d = Deck(dic["owner"])
+        d.deck = deck_to_return
+
+        return d

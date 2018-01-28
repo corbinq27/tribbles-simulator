@@ -10,7 +10,7 @@ class TestPlayer(unittest.TestCase):
     """Basic test cases."""
 
     def test_deck_import(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         #top card of test deck is 100 tribbles rescue
@@ -26,7 +26,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.hand.deck[0].power, Power.Rescue)
 
     def test_draw_card(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         #what is the top card of the deck?
@@ -42,7 +42,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(top_card_of_deck, p.hand.get_top_card_and_remove_card())
 
     def test_play_card(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         # what is the top card of the deck?
@@ -64,7 +64,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.play_pile.get_top_card_and_remove_card(), top_card_of_deck)
 
     def test_get_poisoned(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         #top card of test deck is 100 tribbles rescue
@@ -79,7 +79,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.discard_pile.deck[0].power, Power.Rescue)
 
     def test_end_round_not_out(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         size_of_deck = len(p.deck.deck)
@@ -101,7 +101,7 @@ class TestPlayer(unittest.TestCase):
 
 
     def test_end_round_went_out(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         size_of_deck = len(p.deck.deck)
@@ -120,7 +120,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(len(p.deck.deck), size_of_deck)
 
     def test_discard_power(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         p.action_draw_card()
@@ -133,7 +133,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.discard_pile.deck[0], card_in_hand)
 
     def test_rescue_power(self):
-        test_deck_path = os.path.join("..", "decks", "testdeck.json")
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         top_card_of_deck = copy.deepcopy(p.deck.deck[0])
@@ -232,6 +232,51 @@ class TestPlayer(unittest.TestCase):
 
         self.assertEqual(p.get_players_score(), 111101)
 
+    def test_player_cannot_play(self):
+        p = Player('what', None, 5)
+        last_card = Card(1000, Power.Rescue, "blah")
+        p1 = p.get_state_minimum_cards_in_hand(last_card, 1)
+
+    def test_player_copy(self):
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        p = Player("dude", test_deck_path, 5)
+        pcopy = p.get_copy()
+
+        # what is the top card of the deck?
+        top_card_of_deck = pcopy.deck.deck[0]
+
+        # do the draw
+        pcopy.action_draw_card()
+
+        # play card in hand
+        pcopy.action_play_card(pcopy.hand.deck[0])
+
+        # hand should be empty
+        self.assertEqual(len(pcopy.hand.deck), 0)
+
+        # play pile should be one card in length
+        self.assertEqual(len(pcopy.play_pile.deck), 1)
+
+        # only card in play pile should be the same card as top_card_of_deck from before
+        self.assertEqual(pcopy.play_pile.get_top_card_and_remove_card(), top_card_of_deck)
+
+    def test_copy_player(self):
+        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        p = Player("dude", test_deck_path, 5)
+
+        p_copy = p.get_copy()
+
+        #top card of test deck is 100 tribbles rescue
+        self.assertEqual(p_copy.deck.deck[0].denomination, 100)
+        self.assertEqual(p_copy.deck.deck[0].power, Power.Rescue)
+
+        #draw that card
+        p_copy.action_draw_card()
+
+        #only card in hand should be that card
+
+        self.assertEqual(p_copy.hand.deck[0].denomination, 100)
+        self.assertEqual(p_copy.hand.deck[0].power, Power.Rescue)
 
 if __name__ == '__main__':
     unittest.main()
