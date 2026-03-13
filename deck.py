@@ -5,7 +5,12 @@ import random
 import math
 import copy
 
-Power = Enum("Power", "Bonus Clone Discard Go Poison Rescue Reverse Skip")
+Power = Enum("Power", (
+    "Advance Ante Bah Battle Bij Bonus Cache Clone Copy Dabo Dance "
+    "Discard Exchange Famine Fizzbin Flood Fold Freeze Go IDIC Kill "
+    "Mutate Party Poison Qapla Recycle Replay Replicate Rescue Reverse "
+    "Rival Roll Safety Sabotage Score Shift Skip Stampede Tally TimeWarp Wager"
+))
 
 
 class Card:
@@ -43,9 +48,11 @@ class Card:
         a 1 can also be played if the chain was broken.
         * This card can be played if the last card played has a denomination 10 times smaller than this card.
         * This card can be played if the last card played and this card have the same denomination and this card
-        has a power of clone.
+        has a power of Clone.
         * This card can be played if the last card played was denomination 100,000 and this card is denomination 1.
         * This card can be played if the last card played is a None object and this card is denomincation 1.
+        * This card can be played if the chain is broken and this card is denomination 1 or has the Advance power.
+        * Famine resets the chain to 1 without breaking it: only denomination-1 cards are playable after Famine.
         """
         last_denom = None
         if last_played_card is None:
@@ -56,13 +63,22 @@ class Card:
         else:
             last_denom = last_played_card.denomination
 
+        # Famine resets the chain to 1 without breaking it; overrides all other normal sequence checks
+        if last_played_card.power == Power.Famine:
+            if self.denomination == 1:
+                return True
+            elif is_chain_broken and self.power == Power.Advance:
+                return True
+            else:
+                return False
+
         if self.denomination == (last_denom * 10):
             return True
         elif (self.denomination == last_denom) and self.power == Power.Clone:
             return True
         elif self.denomination == 1 and last_denom == 100000:
             return True
-        elif is_chain_broken and self.denomination == 1:
+        elif is_chain_broken and (self.denomination == 1 or self.power == Power.Advance):
             return True
         else:
             return False

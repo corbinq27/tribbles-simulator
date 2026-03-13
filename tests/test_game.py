@@ -6,11 +6,15 @@ from player import Player
 from deck import Power, Card, Deck
 from game import Game
 
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+GAMES_DIR = os.path.join(TESTS_DIR, '..', 'games')
+DECKS_DIR = os.path.join(TESTS_DIR, '..', 'decks')
+
 class TestGame(unittest.TestCase):
     """Basic test cases."""
 
     def test_create_game_object(self):
-        game_file_path = os.path.join("..", "games", "test_game.json")
+        game_file_path = os.path.join(GAMES_DIR,"test_game.json")
         game = Game(game_file_path)
         self.assertEqual(2, len(game.dict_of_players))
         self.assertEqual(game.dict_of_players[0].name, "player_1")

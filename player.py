@@ -189,7 +189,7 @@ class Player:
         This does NOT force a round end if the hand is now 0 length.
         """
         card_removed = self.hand.remove_card(card)
-        self.discard_pile.add_card(card)
+        self.discard_pile.add_card(card_removed)
 
     def action_rescue_card(self, card):
         """
@@ -215,10 +215,14 @@ class Player:
         discards player's hand. Shuffles play pile into draw deck.
 
         if is_out set to True, then counts the play pile and adds the score from the play pile to this player's
-        score (must pass in proper round_number to accomplish this as well).
+        score (must pass in proper round_number to accomplish this as well).  Also adds IDIC and Bonus bonuses.
         """
         if is_out:
-            self.score["round%s" % round_number] = self.play_pile.get_denomination_sum()
+            self.score["round%s" % round_number] = (
+                self.play_pile.get_denomination_sum()
+                + self.get_idic_bonus()
+                + self.get_bonus_run_score()
+            )
 
         if not self.hand.is_empty():
             for _ in range(0, len(self.hand.deck)):
@@ -232,6 +236,52 @@ class Player:
             self.deck.shuffle()
 
     ####### helper methods
+
+    def get_idic_bonus(self):
+        """
+        Returns IDIC bonus points if the player has an IDIC Tribble in their play pile.
+        IDIC is worth 10,000 points for each different Tribble power in the play pile (including IDIC itself).
+        Multiple IDIC Tribbles of the same denomination do not stack; only unique denominations count.
+        Returns 0 if no IDIC card is in the play pile.
+        """
+        idic_denoms_seen = set()
+        has_idic = False
+        for card in self.play_pile.deck:
+            if card.power == Power.IDIC:
+                if card.denomination not in idic_denoms_seen:
+                    has_idic = True
+                    idic_denoms_seen.add(card.denomination)
+
+        if not has_idic:
+            return 0
+
+        unique_powers = set(card.power for card in self.play_pile.deck)
+        return len(unique_powers) * 10000
+
+    def get_bonus_run_score(self):
+        """
+        Returns 100,000 if the player's play pile contains Bonus cards of denominations
+        1, 10, 100, and 1,000 (a full run).  A player can only score Bonus once per round.
+        Returns 0 if the run is incomplete or no Bonus cards are present.
+        """
+        bonus_denoms = set(
+            card.denomination for card in self.play_pile.deck
+            if card.power == Power.Bonus
+        )
+        if {1, 10, 100, 1000}.issubset(bonus_denoms):
+            return 100000
+        return 0
+
+    def get_time_warp_penalty(self):
+        """
+        Returns the number of cards to subtract from the opening hand in the next round.
+        Time Warp Tribbles of the same denomination are not cumulative; only unique denominations count.
+        """
+        time_warp_denoms = set(
+            card.denomination for card in self.play_pile.deck
+            if card.power == Power.TimeWarp
+        )
+        return len(time_warp_denoms)
 
     def get_players_score(self):
         score_to_return = 0

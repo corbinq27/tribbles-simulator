@@ -6,11 +6,14 @@ from player import Player
 from deck import Power, Card, Deck
 import copy
 
+TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+DECKS_DIR = os.path.join(TESTS_DIR, '..', 'decks')
+
 class TestPlayer(unittest.TestCase):
     """Basic test cases."""
 
     def test_deck_import(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         #top card of test deck is 100 tribbles rescue
@@ -26,7 +29,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.hand.deck[0].power, Power.Rescue)
 
     def test_draw_card(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         #what is the top card of the deck?
@@ -42,7 +45,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(top_card_of_deck, p.hand.get_top_card_and_remove_card())
 
     def test_play_card(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         # what is the top card of the deck?
@@ -64,7 +67,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.play_pile.get_top_card_and_remove_card(), top_card_of_deck)
 
     def test_get_poisoned(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         #top card of test deck is 100 tribbles rescue
@@ -79,7 +82,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.discard_pile.deck[0].power, Power.Rescue)
 
     def test_end_round_not_out(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         size_of_deck = len(p.deck.deck)
@@ -101,7 +104,7 @@ class TestPlayer(unittest.TestCase):
 
 
     def test_end_round_went_out(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         size_of_deck = len(p.deck.deck)
@@ -120,7 +123,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(len(p.deck.deck), size_of_deck)
 
     def test_discard_power(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         p.action_draw_card()
@@ -133,7 +136,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(p.discard_pile.deck[0], card_in_hand)
 
     def test_rescue_power(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         top_card_of_deck = copy.deepcopy(p.deck.deck[0])
@@ -152,7 +155,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(latest_top_card_of_deck.power, top_card_of_deck.power)
 
     def test_state_of_all_deterministic_actions(self):
-        test_deck_path = os.path.join("..", "decks", "test_tree_deck.json")
+        test_deck_path = os.path.join(DECKS_DIR,"test_tree_deck.json")
         p = Player("dude", test_deck_path, 5)
 
         for i in range(0, 20):
@@ -173,7 +176,7 @@ class TestPlayer(unittest.TestCase):
         made of the end node cards.  If the deck is empty then the test passes.
         :return:
         """
-        test_deck_path = os.path.join("..", "decks", "test_tree_deck.json")
+        test_deck_path = os.path.join(DECKS_DIR,"test_tree_deck.json")
         p = Player("dude", test_deck_path, 5)
 
         for i in range(0, 20):
@@ -208,7 +211,7 @@ class TestPlayer(unittest.TestCase):
         made of the end node cards.  If the deck is empty then the test passes.
         :return:
         """
-        test_deck_path = os.path.join("..", "decks", "test_tree_deck.json")
+        test_deck_path = os.path.join(DECKS_DIR,"test_tree_deck.json")
         p = Player("dude", test_deck_path, 5)
 
         for i in range(0, 20):
@@ -238,7 +241,7 @@ class TestPlayer(unittest.TestCase):
         p1 = p.get_state_minimum_cards_in_hand(last_card, 1)
 
     def test_player_copy(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
         pcopy = p.get_copy()
 
@@ -261,7 +264,7 @@ class TestPlayer(unittest.TestCase):
         self.assertEqual(pcopy.play_pile.get_top_card_and_remove_card(), top_card_of_deck)
 
     def test_copy_player(self):
-        test_deck_path = os.path.join("..", "decks", "testdeckold.json")
+        test_deck_path = os.path.join(DECKS_DIR,"testdeckold.json")
         p = Player("dude", test_deck_path, 5)
 
         p_copy = p.get_copy()
