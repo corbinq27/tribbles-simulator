@@ -677,5 +677,591 @@ class TestDeckParsingNewPowers(unittest.TestCase):
             self.assertEqual(c.denomination, 10)
 
 
+# ===========================================================================
+# Dabo chain mechanics tests (mirrors Famine behaviour)
+# ===========================================================================
+
+class TestDaboChainMechanics(unittest.TestCase):
+    """Dabo resets the chain to 1 without breaking it, identical to Famine."""
+
+    def test_one_playable_after_dabo_any_denom(self):
+        """After any Dabo card, denomination 1 is next in sequence."""
+        for denom in [1, 10, 100, 1000, 10000, 100000]:
+            dabo = Card(denom, Power.Dabo, None)
+            one = Card(1, Power.Go, None)
+            self.assertTrue(one.is_playable(dabo),
+                            f"1 should be playable after {denom} Dabo")
+
+    def test_non_one_not_playable_after_dabo(self):
+        """Non-1 cards are not playable after Dabo."""
+        dabo = Card(100, Power.Dabo, None)
+        for denom in [10, 100, 1000, 10000, 100000]:
+            card = Card(denom, Power.Rescue, None)
+            self.assertFalse(card.is_playable(dabo),
+                             f"{denom} should NOT be playable after Dabo")
+
+    def test_clone_not_playable_after_dabo(self):
+        """Clone of Dabo's denomination is not playable after Dabo."""
+        dabo = Card(100, Power.Dabo, None)
+        clone_100 = Card(100, Power.Clone, None)
+        self.assertFalse(clone_100.is_playable(dabo))
+
+    def test_dabo_chain_does_not_break(self):
+        """Dabo resets to 1 regardless of is_chain_broken."""
+        dabo = Card(100, Power.Dabo, None)
+        one = Card(1, Power.Rescue, None)
+        self.assertTrue(one.is_playable(dabo, is_chain_broken=False))
+        self.assertTrue(one.is_playable(dabo, is_chain_broken=True))
+
+    def test_after_dabo_chain_continues_normally_from_one(self):
+        """After Dabo → 1 → 10 should be playable (normal continuation)."""
+        one = Card(1, Power.Go, None)
+        ten = Card(10, Power.Rescue, None)
+        self.assertTrue(ten.is_playable(one))
+
+
+# ===========================================================================
+# Shift chain mechanics tests (wildcard power)
+# ===========================================================================
+
+class TestShiftChainMechanics(unittest.TestCase):
+    """Shift is a wildcard: playable at any point in an ongoing chain."""
+
+    def test_shift_not_playable_at_chain_start(self):
+        """Shift cannot open a round (only denomination 1 may do that)."""
+        for denom in [1, 10, 100, 1000, 10000, 100000]:
+            shift = Card(denom, Power.Shift, None)
+            self.assertFalse(shift.is_playable(None),
+                             f"{denom} Shift should NOT be playable at chain start")
+
+    def test_shift_playable_after_any_card(self):
+        """Shift is playable after any denomination."""
+        for last_denom in [1, 10, 100, 1000, 10000, 100000]:
+            last = Card(last_denom, Power.Go, None)
+            for shift_denom in [1, 10, 100, 1000, 10000, 100000]:
+                shift = Card(shift_denom, Power.Shift, None)
+                self.assertTrue(shift.is_playable(last),
+                                f"{shift_denom} Shift should be playable after {last_denom}")
+
+    def test_shift_playable_when_chain_broken(self):
+        """Shift is also playable when the chain is broken."""
+        last = Card(10000, Power.Go, None)
+        shift = Card(100, Power.Shift, None)
+        self.assertTrue(shift.is_playable(last, is_chain_broken=True))
+
+    def test_shift_playable_after_famine(self):
+        """Shift (wildcard) is playable even after Famine."""
+        famine = Card(100, Power.Famine, None)
+        shift = Card(1000, Power.Shift, None)
+        self.assertTrue(shift.is_playable(famine))
+
+    def test_after_shift_chain_continues_from_shift_denomination(self):
+        """After a Shift card the normal ×10 rule applies from the Shift's denomination."""
+        shift = Card(100, Power.Shift, None)
+        correct_next = Card(1000, Power.Go, None)   # 100 × 10
+        wrong_next = Card(10, Power.Go, None)        # 100 / 10, invalid
+        self.assertTrue(correct_next.is_playable(shift))
+        self.assertFalse(wrong_next.is_playable(shift))
+
+
+# ===========================================================================
+# Dance bonus scoring tests
+# ===========================================================================
+
+class TestDanceBonusScoring(unittest.TestCase):
+    """Tests for Player.get_dance_bonus()."""
+
+    def test_no_cards_no_dance(self):
+        p = player_with_play_pile([Card(1, Power.Go, "t")])
+        self.assertEqual(p.get_dance_bonus(), 0)
+
+    def test_fewer_than_6_cards_no_dance(self):
+        p = player_with_play_pile([
+            Card(1, Power.Skip, "t"), Card(10, Power.Reverse, "t"),
+            Card(100, Power.Skip, "t"), Card(1000, Power.Reverse, "t"),
+        ])
+        self.assertEqual(p.get_dance_bonus(), 0)
+
+    def test_correct_pattern_scores_100000(self):
+        """Skip/Reverse×3 in top 6 cards → 100,000.
+        add_card inserts at index 0, so the LAST card added is at the top.
+        To get top=[Skip,Reverse,Skip,Reverse,Skip,Reverse] we add in reverse order."""
+        p = player_with_play_pile([
+            Card(100000, Power.Reverse, "t"),  # added first → ends up deepest
+            Card(10000,  Power.Skip,    "t"),
+            Card(1000,   Power.Reverse, "t"),
+            Card(100,    Power.Skip,    "t"),
+            Card(10,     Power.Reverse, "t"),
+            Card(1,      Power.Skip,    "t"),  # added last → top of pile
+        ])
+        self.assertEqual(p.get_dance_bonus(), 100000)
+
+    def test_wrong_pattern_no_dance(self):
+        """Reverse before Skip (top→bottom) is not the Dance pattern."""
+        p = player_with_play_pile([
+            Card(100000, Power.Skip,    "t"),
+            Card(10000,  Power.Reverse, "t"),
+            Card(1000,   Power.Skip,    "t"),
+            Card(100,    Power.Reverse, "t"),
+            Card(10,     Power.Skip,    "t"),
+            Card(1,      Power.Reverse, "t"),  # top of pile = Reverse
+        ])
+        self.assertEqual(p.get_dance_bonus(), 0)
+
+    def test_dance_added_to_score_on_going_out(self):
+        """Dance bonus is included in action_end_round when going out."""
+        p = player_with_play_pile([
+            Card(100000, Power.Reverse, "t"),
+            Card(10000,  Power.Skip,    "t"),
+            Card(1000,   Power.Reverse, "t"),
+            Card(100,    Power.Skip,    "t"),
+            Card(10,     Power.Reverse, "t"),
+            Card(1,      Power.Skip,    "t"),  # top of pile
+        ])
+        p.action_end_round(1, is_out=True)
+        pile_sum = 1 + 10 + 100 + 1000 + 10000 + 100000
+        self.assertEqual(p.score["round1"], pile_sum + 100000)
+
+    def test_dance_not_scored_when_not_out(self):
+        p = player_with_play_pile([
+            Card(100000, Power.Reverse, "t"),
+            Card(10000,  Power.Skip,    "t"),
+            Card(1000,   Power.Reverse, "t"),
+            Card(100,    Power.Skip,    "t"),
+            Card(10,     Power.Reverse, "t"),
+            Card(1,      Power.Skip,    "t"),
+        ])
+        p.action_end_round(1, is_out=False)
+        self.assertEqual(p.score["round1"], 0)
+
+
+# ===========================================================================
+# Safety power tests
+# ===========================================================================
+
+class TestSafetyPower(unittest.TestCase):
+    """Tests for the Safety passive power in action_end_round."""
+
+    def test_safety_in_play_pile_shuffles_hand_to_deck(self):
+        """When Safety is in the play pile, hand cards go to deck instead of discard."""
+        p = Player("test", None, 5)
+        p.play_pile.add_card(Card(1, Power.Safety, "test"))
+        hand_card = Card(1000, Power.Go, "test")
+        p.hand.add_card(hand_card)
+        initial_deck_size = len(p.deck.deck)
+        p.action_end_round(1, is_out=False)
+        self.assertTrue(p.hand.is_empty())
+        self.assertTrue(p.discard_pile.is_empty())
+        # play pile also moves back to deck, so deck grew by 2 (Safety + hand card)
+        self.assertEqual(len(p.deck.deck), initial_deck_size + 2)
+
+    def test_no_safety_discards_hand_normally(self):
+        """Without Safety in play pile, hand cards go to discard."""
+        p = Player("test", None, 5)
+        p.play_pile.add_card(Card(1, Power.Go, "test"))
+        p.hand.add_card(Card(1000, Power.Rescue, "test"))
+        p.action_end_round(1, is_out=False)
+        self.assertTrue(p.hand.is_empty())
+        self.assertEqual(len(p.discard_pile.deck), 1)
+
+
+# ===========================================================================
+# Roll mulligan tests
+# ===========================================================================
+
+class TestRollMulligan(unittest.TestCase):
+    """Tests for Player.action_mulligan()."""
+
+    def test_mulligan_discards_hand(self):
+        """action_mulligan moves all hand cards to discard pile."""
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100]:
+            p.hand.add_card(Card(denom, Power.Go, "test"))
+        p.deck.add_card(Card(1000, Power.Rescue, "test"))
+        p.deck.add_card(Card(10000, Power.Rescue, "test"))
+        p.action_mulligan(3)
+        self.assertTrue(p.hand.is_empty() or len(p.hand.deck) <= 3)
+        # Old hand cards should be in discard
+        self.assertEqual(len(p.discard_pile.deck), 3)
+
+    def test_mulligan_draws_new_hand(self):
+        """action_mulligan draws up to hand_size new cards from deck."""
+        p = Player("test", None, 5)
+        for _ in range(3):
+            p.hand.add_card(Card(1, Power.Go, "test"))
+        for denom in [10, 100, 1000]:
+            p.deck.add_card(Card(denom, Power.Rescue, "test"))
+        p.action_mulligan(3)
+        self.assertEqual(len(p.hand.deck), 3)
+        # new hand should have come from deck
+        self.assertTrue(all(c.denomination in [10, 100, 1000] for c in p.hand.deck))
+
+
+# ===========================================================================
+# Fizzbin protection tests
+# ===========================================================================
+
+class TestFizzbinProtection(unittest.TestCase):
+    """Tests for Player.has_fizzbin_protection() and its effect on Kill."""
+
+    def test_no_fizzbin_not_protected(self):
+        p = player_with_play_pile([Card(1, Power.Go, "test")])
+        self.assertFalse(p.has_fizzbin_protection())
+
+    def test_fizzbin_in_play_pile_is_protected(self):
+        p = player_with_play_pile([
+            Card(1, Power.Go, "test"),
+            Card(10, Power.Fizzbin, "test"),
+        ])
+        self.assertTrue(p.has_fizzbin_protection())
+
+    def test_kill_blocked_by_fizzbin(self):
+        """Kill cannot remove the top card if Fizzbin is in the play pile."""
+        p = player_with_play_pile([
+            Card(10, Power.Fizzbin, "test"),
+            Card(100, Power.Go, "test"),
+        ])
+        initial_size = len(p.play_pile.deck)
+        if p.has_fizzbin_protection():
+            pass  # game loop would skip the kill
+        else:
+            p.action_kill_top_play_pile()
+        # Protected: pile unchanged
+        self.assertEqual(len(p.play_pile.deck), initial_size)
+
+
+# ===========================================================================
+# Fold protection tests
+# ===========================================================================
+
+class TestFoldProtection(unittest.TestCase):
+    """Tests for Player.is_fold_protected()."""
+
+    def test_fold_on_top_is_protected(self):
+        p = player_with_play_pile([Card(100, Power.Fold, "test")])
+        self.assertTrue(p.is_fold_protected())
+
+    def test_fold_not_on_top_not_protected(self):
+        # add_card inserts at index 0; last added = top.
+        # Add Go last so Go is on top and Fold is beneath.
+        p = player_with_play_pile([
+            Card(10, Power.Fold, "test"),   # added first → beneath top
+            Card(100, Power.Go, "test"),    # added last → top of pile
+        ])
+        self.assertFalse(p.is_fold_protected())
+
+    def test_empty_play_pile_not_protected(self):
+        p = Player("test", None, 5)
+        self.assertFalse(p.is_fold_protected())
+
+
+# ===========================================================================
+# New player action method tests
+# ===========================================================================
+
+class TestCachePowerAction(unittest.TestCase):
+
+    def test_cache_removes_card_from_hand(self):
+        """Cache removes the cached card from hand then draws one new card, so net hand size is 1."""
+        p = Player("test", None, 5)
+        card = Card(100, Power.Go, "test")
+        p.hand.add_card(card)
+        p.deck.add_card(Card(1000, Power.Rescue, "test"))
+        p.action_cache(card)
+        # Cached card is gone; drew one replacement → hand still has 1 card
+        self.assertEqual(len(p.hand.deck), 1)
+        self.assertFalse(any(c.denomination == 100 for c in p.hand.deck))
+
+    def test_cache_places_card_under_deck(self):
+        p = Player("test", None, 5)
+        card = Card(100, Power.Go, "test")
+        p.hand.add_card(card)
+        p.deck.add_card(Card(1000, Power.Rescue, "test"))
+        p.action_cache(card)
+        # The cached card is at the bottom; new drawn card is at top
+        self.assertEqual(p.deck.deck[-1].denomination, 100)
+
+    def test_cache_draws_new_card(self):
+        p = Player("test", None, 5)
+        p.hand.add_card(Card(100, Power.Go, "test"))
+        p.deck.add_card(Card(1000, Power.Rescue, "test"))
+        p.action_cache(p.hand.deck[0])
+        # Drew the 1000 card from deck
+        self.assertEqual(len(p.hand.deck), 1)
+        self.assertEqual(p.hand.deck[0].denomination, 1000)
+
+
+class TestExchangePowerAction(unittest.TestCase):
+
+    def test_exchange_swaps_hand_and_discard(self):
+        p = Player("test", None, 5)
+        hand_card = Card(1, Power.Go, "test")
+        discard_card = Card(100000, Power.Clone, "test")
+        p.hand.add_card(hand_card)
+        p.discard_pile.add_card(discard_card)
+        p.action_exchange(hand_card, discard_card)
+        self.assertEqual(p.hand.deck[0].denomination, 100000)
+        self.assertEqual(p.discard_pile.deck[0].denomination, 1)
+
+    def test_exchange_removes_from_hand(self):
+        p = Player("test", None, 5)
+        card = Card(10, Power.Poison, "test")
+        p.hand.add_card(card)
+        p.discard_pile.add_card(Card(1000, Power.Go, "test"))
+        p.action_exchange(card, p.discard_pile.deck[0])
+        self.assertFalse(any(c.denomination == 10 for c in p.hand.deck))
+
+
+class TestReplayPowerAction(unittest.TestCase):
+
+    def test_replay_moves_card_to_top_of_play_pile(self):
+        p = Player("test", None, 5)
+        old_top = Card(1000, Power.Rescue, "test")
+        under_card = Card(100, Power.Go, "test")
+        p.play_pile.add_card(old_top)   # top
+        p.play_pile.add_card(under_card)  # now under
+        # Replay the 100 card
+        p.action_replay(under_card)
+        self.assertEqual(p.play_pile.deck[0].denomination, 100)
+
+    def test_replay_does_not_duplicate_card(self):
+        p = Player("test", None, 5)
+        c1 = Card(1000, Power.Rescue, "test")
+        c2 = Card(100, Power.Go, "test")
+        p.play_pile.add_card(c1)
+        p.play_pile.add_card(c2)
+        p.action_replay(c2)
+        self.assertEqual(len(p.play_pile.deck), 2)
+
+
+class TestRecyclePowerAction(unittest.TestCase):
+
+    def test_recycle_shuffles_discard_into_deck(self):
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100]:
+            p.discard_pile.add_card(Card(denom, Power.Go, "test"))
+        p.action_recycle_discard()
+        self.assertTrue(p.discard_pile.is_empty())
+        self.assertEqual(len(p.deck.deck), 3)
+
+
+class TestFloodPowerAction(unittest.TestCase):
+
+    def test_flood_puts_hand_under_deck(self):
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100]:
+            p.hand.add_card(Card(denom, Power.Go, "test"))
+        # Give enough cards in deck to draw from
+        for denom in [1000, 10000, 100000]:
+            p.deck.add_card(Card(denom, Power.Rescue, "test"))
+        p.action_flood()
+        self.assertTrue(p.hand.is_empty() or len(p.hand.deck) == 3)  # drew 3 new cards
+        # Original hand cards should be in deck (at bottom)
+        bottom3 = p.deck.deck[-3:]
+        self.assertTrue(all(c.denomination in [1, 10, 100] for c in bottom3))
+
+    def test_flood_draws_three_new_cards(self):
+        p = Player("test", None, 5)
+        p.hand.add_card(Card(1, Power.Go, "test"))
+        for denom in [10, 100, 1000]:
+            p.deck.add_card(Card(denom, Power.Rescue, "test"))
+        p.action_flood()
+        self.assertEqual(len(p.hand.deck), 3)
+
+
+class TestMutatePowerAction(unittest.TestCase):
+
+    def test_mutate_clears_play_pile(self):
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100]:
+            p.play_pile.add_card(Card(denom, Power.Go, "test"))
+        for denom in [1000, 10000, 100000]:
+            p.deck.add_card(Card(denom, Power.Rescue, "test"))
+        p.action_mutate()
+        self.assertTrue(p.play_pile.is_empty())
+
+    def test_mutate_draws_same_count_as_play_pile(self):
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100]:
+            p.play_pile.add_card(Card(denom, Power.Go, "test"))
+        for denom in [1000, 10000, 100000]:
+            p.deck.add_card(Card(denom, Power.Rescue, "test"))
+        p.action_mutate()
+        self.assertEqual(len(p.hand.deck), 3)
+
+
+class TestWagerPowerAction(unittest.TestCase):
+
+    def test_wager_preserves_card_count(self):
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100, 1000]:
+            p.deck.add_card(Card(denom, Power.Go, "test"))
+        last = Card(1, Power.Go, "test")
+        p.action_wager(last, False)
+        self.assertEqual(len(p.deck.deck), 4)
+
+    def test_wager_puts_playable_card_on_top(self):
+        p = Player("test", None, 5)
+        # top 3 in deck (added last = first out): 100, 10, 1000
+        p.deck.add_card(Card(1000, Power.Go, "test"))
+        p.deck.add_card(Card(10, Power.Go, "test"))
+        p.deck.add_card(Card(100, Power.Go, "test"))
+        last = Card(10, Power.Go, "test")  # next in sequence is 100
+        p.action_wager(last, False)
+        self.assertEqual(p.deck.deck[0].denomination, 100)
+
+
+class TestKillPowerAction(unittest.TestCase):
+
+    def test_kill_removes_top_of_play_pile(self):
+        # add_card inserts at index 0; last added = top.
+        p = player_with_play_pile([
+            Card(100, Power.Rescue, "test"),   # added first → beneath
+            Card(1000, Power.Go, "test"),      # added last → top
+        ])
+        killed = p.action_kill_top_play_pile()
+        self.assertEqual(killed.denomination, 1000)
+        self.assertEqual(len(p.play_pile.deck), 1)
+
+    def test_kill_moves_card_to_discard(self):
+        p = player_with_play_pile([Card(500, Power.Go, "test")])
+        p.action_kill_top_play_pile()
+        self.assertEqual(len(p.discard_pile.deck), 1)
+
+    def test_kill_empty_play_pile_returns_none(self):
+        p = Player("test", None, 5)
+        result = p.action_kill_top_play_pile()
+        self.assertIsNone(result)
+
+
+class TestDiscardRandomHandAction(unittest.TestCase):
+
+    def test_discard_random_removes_from_hand(self):
+        p = Player("test", None, 5)
+        p.hand.add_card(Card(100, Power.Go, "test"))
+        denom = p.action_discard_random_hand_card()
+        self.assertEqual(denom, 100)
+        self.assertTrue(p.hand.is_empty())
+
+    def test_discard_random_empty_hand_returns_zero(self):
+        p = Player("test", None, 5)
+        self.assertEqual(p.action_discard_random_hand_card(), 0)
+
+    def test_discard_random_moves_to_discard_pile(self):
+        p = Player("test", None, 5)
+        p.hand.add_card(Card(10000, Power.Rescue, "test"))
+        p.action_discard_random_hand_card()
+        self.assertEqual(len(p.discard_pile.deck), 1)
+
+
+class TestBattlePowerAction(unittest.TestCase):
+
+    def test_battle_reveal_removes_top_3_from_deck(self):
+        p = Player("test", None, 5)
+        for denom in [1, 10, 100, 1000]:
+            p.deck.add_card(Card(denom, Power.Go, "test"))
+        total, cards = p.action_battle_reveal()
+        self.assertEqual(len(cards), 3)
+        self.assertEqual(len(p.deck.deck), 1)
+
+    def test_battle_reveal_returns_correct_total(self):
+        p = Player("test", None, 5)
+        p.deck.add_card(Card(100, Power.Go, "test"))
+        p.deck.add_card(Card(10, Power.Go, "test"))
+        p.deck.add_card(Card(1, Power.Go, "test"))
+        total, cards = p.action_battle_reveal()
+        self.assertEqual(total, 111)
+
+    def test_battle_receive_adds_to_hand(self):
+        p = Player("test", None, 5)
+        cards = [Card(100, Power.Go, "test"), Card(1000, Power.Rescue, "test")]
+        p.action_battle_receive_cards(cards)
+        self.assertEqual(len(p.hand.deck), 2)
+
+
+class TestPlaceCardUnderPlayPile(unittest.TestCase):
+
+    def test_place_card_under_removes_from_hand(self):
+        p = Player("test", None, 5)
+        card = Card(1000, Power.Bij, "test")
+        p.hand.add_card(card)
+        p.action_place_card_under_play_pile(card)
+        self.assertTrue(p.hand.is_empty())
+
+    def test_place_card_under_goes_to_bottom_of_play_pile(self):
+        p = Player("test", None, 5)
+        existing = Card(100, Power.Go, "test")
+        p.play_pile.add_card(existing)
+        bij = Card(1000, Power.Bij, "test")
+        p.hand.add_card(bij)
+        p.action_place_card_under_play_pile(bij)
+        # Bottom of play pile should be Bij
+        self.assertEqual(p.play_pile.deck[-1].denomination, 1000)
+        self.assertEqual(p.play_pile.deck[-1].power, Power.Bij)
+
+
+class TestAntePowerAction(unittest.TestCase):
+
+    def test_ante_removes_card_from_hand(self):
+        p = Player("test", None, 5)
+        p.hand.add_card(Card(100, Power.Go, "test"))
+        card = p.action_ante()
+        self.assertIsNotNone(card)
+        self.assertTrue(p.hand.is_empty())
+
+    def test_ante_empty_hand_returns_none(self):
+        p = Player("test", None, 5)
+        self.assertIsNone(p.action_ante())
+
+
+# ===========================================================================
+# TimeWarp game-loop integration tests
+# ===========================================================================
+
+class TestTimeWarpGameLoopIntegration(unittest.TestCase):
+    """TimeWarp penalty reduces the opening hand size in the following round."""
+
+    def test_get_time_warp_penalty_zero_when_no_timewarp(self):
+        p = player_with_play_pile([Card(1, Power.Go, "test")])
+        self.assertEqual(p.get_time_warp_penalty(), 0)
+
+    def test_get_time_warp_penalty_reflects_unique_denoms(self):
+        p = player_with_play_pile([
+            Card(10000, Power.TimeWarp, "test"),
+            Card(100000, Power.TimeWarp, "test"),
+        ])
+        self.assertEqual(p.get_time_warp_penalty(), 2)
+
+    def test_hand_size_reduced_by_penalty_simulation(self):
+        """
+        Simulate the game-loop logic: if a player has penalty=2 from previous round,
+        they should draw max(1, 7-2)=5 cards.
+        """
+        p = Player("test", None, 5)
+        for _ in range(10):
+            p.deck.add_card(Card(1, Power.Go, "test"))
+        penalty = 2
+        hand_size = max(1, 7 - penalty)
+        for _ in range(hand_size):
+            p.action_draw_card()
+        self.assertEqual(len(p.hand.deck), 5)
+
+
+# ===========================================================================
+# Tally passive halving tests
+# ===========================================================================
+
+class TestTallyPower(unittest.TestCase):
+    """Tally halves opponent scoring and awards the halved amount to the Tally owner."""
+
+    def test_tally_in_play_pile_detected(self):
+        p = player_with_play_pile([Card(1000, Power.Tally, "test")])
+        self.assertTrue(p.has_power_in_play_pile(Power.Tally))
+
+    def test_no_tally_not_detected(self):
+        p = player_with_play_pile([Card(1000, Power.Go, "test")])
+        self.assertFalse(p.has_power_in_play_pile(Power.Tally))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -52,19 +52,21 @@ class Card:
         * This card can be played if the last card played was denomination 100,000 and this card is denomination 1.
         * This card can be played if the last card played is a None object and this card is denomincation 1.
         * This card can be played if the chain is broken and this card is denomination 1 or has the Advance power.
-        * Famine resets the chain to 1 without breaking it: only denomination-1 cards are playable after Famine.
+        * Famine and Dabo reset the chain to 1 without breaking it: only denomination-1 cards are playable after them.
+        * Shift is a wildcard: always playable once a chain has started (any denomination, any point).
         """
-        last_denom = None
         if last_played_card is None:
-            if self.denomination == 1:
-                return True
-            else:
-                return False
-        else:
-            last_denom = last_played_card.denomination
+            # Only denomination 1 may open a round; Shift cannot start a chain
+            return self.denomination == 1 and self.power != Power.Shift
 
-        # Famine resets the chain to 1 without breaking it; overrides all other normal sequence checks
-        if last_played_card.power == Power.Famine:
+        last_denom = last_played_card.denomination
+
+        # Shift is a wildcard — playable at any point in an ongoing chain
+        if self.power == Power.Shift:
+            return True
+
+        # Famine and Dabo both reset the chain to 1 without breaking it
+        if last_played_card.power in (Power.Famine, Power.Dabo):
             if self.denomination == 1:
                 return True
             elif is_chain_broken and self.power == Power.Advance:
