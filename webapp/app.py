@@ -542,11 +542,15 @@ class InteractiveGame:
     # Interactive power choices for human player
     # ------------------------------------------------------------------
 
+    _SKIP_CHOICE = {"index": -1, "denomination": 0, "power": "", "label": "Skip (don't use power)"}
+
     def _setup_power_choice_if_needed(self, card_copy):
         """
         If the card's power requires a human decision, configure the input prompt
         and return True (turn is paused).  Return False if the power can be applied
         automatically (or has no active effect).
+
+        Every prompt includes a Skip option (index -1) because power use is optional.
         """
         power = card_copy.power
         player = self.players[self.human_index]
@@ -562,7 +566,7 @@ class InteractiveGame:
                     {"index": i, "denomination": c.denomination, "power": c.power.name,
                      "label": "%d %s" % (c.denomination, c.power.name)}
                     for i, c in enumerate(candidates)
-                ]
+                ] + [self._SKIP_CHOICE]
                 return True
 
         elif power == Power.Cache:
@@ -575,7 +579,7 @@ class InteractiveGame:
                     {"index": i, "denomination": c.denomination, "power": c.power.name,
                      "label": "%d %s" % (c.denomination, c.power.name)}
                     for i, c in enumerate(player.hand.deck)
-                ]
+                ] + [self._SKIP_CHOICE]
                 return True
 
         elif power == Power.Recycle:
@@ -593,7 +597,7 @@ class InteractiveGame:
                 self.input_mode = "power_choice"
                 self.waiting_for_input = True
                 self.input_prompt = "Recycle: Choose whose discard pile to shuffle into their deck:"
-                self.input_choices = choices
+                self.input_choices = choices + [self._SKIP_CHOICE]
                 return True
 
         elif power == Power.Copy:
@@ -612,7 +616,7 @@ class InteractiveGame:
                 self.input_mode = "power_choice"
                 self.waiting_for_input = True
                 self.input_prompt = "Copy: Choose whose top pile power to copy:"
-                self.input_choices = choices
+                self.input_choices = choices + [self._SKIP_CHOICE]
                 return True
 
         elif power in (Power.Kill, Power.Discard, Power.Score, Power.Bij):
@@ -637,7 +641,7 @@ class InteractiveGame:
                     Power.Bij:     "Bij: Choose an opponent to secretly place a card under their pile:",
                 }
                 self.input_prompt = prompts[power]
-                self.input_choices = choices
+                self.input_choices = choices + [self._SKIP_CHOICE]
                 return True
 
         return False
@@ -650,6 +654,16 @@ class InteractiveGame:
         self.pending_power_effect = None
         power = card_copy.power
         player = self.players[self.human_index]
+
+        # -1 means the player chose to skip the power entirely
+        if choice_index == -1:
+            self._add_log("  %s power skipped" % power.name, "info")
+            if player.hand.is_empty():
+                self._end_round(self.human_index)
+                return
+            self.human_play_log_boundary = len(self.log)
+            self._advance_turn()
+            return
 
         if power == Power.Replay:
             candidates = [c for c in player.play_pile.deck if c.power != Power.Replay]
