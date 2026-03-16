@@ -513,8 +513,8 @@ class InteractiveGame:
 
         player.action_end_turn()
 
-        # Check for actionable power (Go/Rescue) — allow continued play first
-        if card_copy.power == Power.Go or card_copy.power == Power.Rescue:
+        # Go: play another card from hand if one is in sequence
+        if card_copy.power == Power.Go:
             new_playable = []
             for i, c in enumerate(player.hand.deck):
                 if c.is_playable(self.last_card_played, self.is_chain_broken):
@@ -522,6 +522,7 @@ class InteractiveGame:
             if new_playable:
                 self._prompt_play(new_playable)
                 return
+        # Rescue is handled via _setup_power_choice_if_needed (discard pile, not hand)
 
         # Check if this power requires a human choice; if so, pause and wait
         if self._setup_power_choice_if_needed(card_copy):
@@ -619,6 +620,23 @@ class InteractiveGame:
                 self.input_choices = choices + [self._SKIP_CHOICE]
                 return True
 
+        elif power == Power.Rescue:
+            if not player.discard_pile.is_empty():
+                choices = []
+                for i, c in enumerate(player.discard_pile.deck):
+                    in_seq = c.is_playable(self.last_card_played, self.is_chain_broken)
+                    suffix = " ★ next in chain" if in_seq else ""
+                    choices.append({
+                        "index": i, "denomination": c.denomination, "power": c.power.name,
+                        "label": "%d %s%s" % (c.denomination, c.power.name, suffix),
+                    })
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Rescue: Choose a card from your discard pile to place on your pile:"
+                self.input_choices = choices + [self._SKIP_CHOICE]
+                return True
+
         elif power in (Power.Kill, Power.Discard, Power.Score, Power.Bij):
             choices = []
             for k in self.player_keys:
@@ -693,6 +711,24 @@ class InteractiveGame:
                 proxy = Card(card_copy.denomination, target_top.power, card_copy.owner)
                 self._add_log("  Copy: you copy %s's %s power" % (self.players[target_key].name, target_top.power.name), "info")
                 self._apply_effects(self.human_index, proxy)
+
+        elif power == Power.Rescue:
+            chosen = player.discard_pile.deck[choice_index]
+            was_in_sequence = chosen.is_playable(self.last_card_played, self.is_chain_broken)
+            # Move chosen card from discard pile to top of play pile
+            player.discard_pile.remove_card(chosen)
+            player.play_pile.add_card(chosen)
+            rescued = player.play_pile.get_top_card_of_deck()
+            self._add_log("  Rescue: you rescue %d %s" % (rescued.denomination, rescued.power.name), "info")
+            if was_in_sequence:
+                # Rescued card advances the chain — player may now play another from hand
+                self.last_card_played = rescued
+                self.is_chain_broken = False
+                new_playable = [i for i, c in enumerate(player.hand.deck)
+                                if c.is_playable(self.last_card_played, self.is_chain_broken)]
+                if new_playable:
+                    self._prompt_play(new_playable)
+                    return
 
         elif power == Power.Kill:
             target_key = choice_index
