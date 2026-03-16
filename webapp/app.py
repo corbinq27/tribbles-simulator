@@ -338,6 +338,12 @@ class InteractiveGame:
         self.current_idx = 0
         self.turn_count = 0
 
+        # Power-choice state (for powers that need human decisions)
+        self.input_mode = "play_card"   # "play_card" | "power_choice"
+        self.pending_power_effect = None  # Card whose power is pending resolution
+        # Log boundary: entries at/after this index were added since the human's last card play
+        self.human_play_log_boundary = 0
+
         # Shuffle and start
         for k in self.player_keys:
             self.players[k].deck.shuffle()
@@ -381,6 +387,7 @@ class InteractiveGame:
         self.frozen_ref = [None]
         self.current_idx = 0
         self.turn_count = 0
+        self.human_play_log_boundary = len(self.log)
 
         self._next_turn()
 
@@ -471,7 +478,12 @@ class InteractiveGame:
         self.input_choices = choices
 
     def handle_human_play(self, card_index):
-        """Called when the human selects a card to play."""
+        """Called when the human selects a card to play or makes a power choice."""
+        # Route power choices to their own handler
+        if self.input_mode == "power_choice":
+            self._handle_power_choice(card_index)
+            return
+
         self.waiting_for_input = False
         player = self.players[self.human_index]
         card = player.hand.deck[card_index]
@@ -483,9 +495,8 @@ class InteractiveGame:
         self.last_card_played = played_card
         self.is_chain_broken = False
 
-        # Handle poison
+        # Handle poison (auto-targets opponent with highest expected value)
         if player.additional_action == Power.Poison:
-            # Find best target
             best_target = None
             best_val = -1
             for k in self.player_keys:
@@ -502,10 +513,7 @@ class InteractiveGame:
 
         player.action_end_turn()
 
-        # Apply power effects (simplified - uses Game's dispatcher via a temporary Game object)
-        self._apply_effects(self.human_index, played_card)
-
-        # Check for actionable power (Go/Rescue) - allow continued play
+        # Check for actionable power (Go/Rescue) — allow continued play first
         if card_copy.power == Power.Go or card_copy.power == Power.Rescue:
             new_playable = []
             for i, c in enumerate(player.hand.deck):
@@ -515,16 +523,216 @@ class InteractiveGame:
                 self._prompt_play(new_playable)
                 return
 
+        # Check if this power requires a human choice; if so, pause and wait
+        if self._setup_power_choice_if_needed(card_copy):
+            return  # _handle_power_choice will finish the turn
+
+        # No choice needed — apply effects automatically
+        self._apply_effects(self.human_index, played_card)
+
         # Check if went out
         if player.hand.is_empty():
             self._end_round(self.human_index)
             return
 
+        self.human_play_log_boundary = len(self.log)
+        self._advance_turn()
+
+    # ------------------------------------------------------------------
+    # Interactive power choices for human player
+    # ------------------------------------------------------------------
+
+    def _setup_power_choice_if_needed(self, card_copy):
+        """
+        If the card's power requires a human decision, configure the input prompt
+        and return True (turn is paused).  Return False if the power can be applied
+        automatically (or has no active effect).
+        """
+        power = card_copy.power
+        player = self.players[self.human_index]
+
+        if power == Power.Replay:
+            candidates = [c for c in player.play_pile.deck if c.power != Power.Replay]
+            if candidates:
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Replay: Choose a card to move to the top of your pile:"
+                self.input_choices = [
+                    {"index": i, "denomination": c.denomination, "power": c.power.name,
+                     "label": "%d %s" % (c.denomination, c.power.name)}
+                    for i, c in enumerate(candidates)
+                ]
+                return True
+
+        elif power == Power.Cache:
+            if not player.hand.is_empty():
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Cache: Choose a card to put under your deck (then draw 1):"
+                self.input_choices = [
+                    {"index": i, "denomination": c.denomination, "power": c.power.name,
+                     "label": "%d %s" % (c.denomination, c.power.name)}
+                    for i, c in enumerate(player.hand.deck)
+                ]
+                return True
+
+        elif power == Power.Recycle:
+            choices = []
+            for k in self.player_keys:
+                p = self.players[k]
+                if not p.discard_pile.is_empty():
+                    label = "Your discard" if k == self.human_index else "%s's discard" % p.name
+                    choices.append({
+                        "index": k, "denomination": len(p.discard_pile.deck), "power": "",
+                        "label": "%s (%d cards)" % (label, len(p.discard_pile.deck))
+                    })
+            if choices:
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Recycle: Choose whose discard pile to shuffle into their deck:"
+                self.input_choices = choices
+                return True
+
+        elif power == Power.Copy:
+            choices = []
+            for k in self.player_keys:
+                if k == self.human_index:
+                    continue
+                top = self.players[k].play_pile.get_top_card_of_deck()
+                if top is not None and top.power not in (Power.Copy, Power.Sabotage):
+                    choices.append({
+                        "index": k, "denomination": top.denomination, "power": top.power.name,
+                        "label": "Copy %s from %s" % (top.power.name, self.players[k].name)
+                    })
+            if choices:
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Copy: Choose whose top pile power to copy:"
+                self.input_choices = choices
+                return True
+
+        elif power in (Power.Kill, Power.Discard, Power.Score, Power.Bij):
+            choices = []
+            for k in self.player_keys:
+                if k == self.human_index:
+                    continue
+                p = self.players[k]
+                if p.is_fold_protected():
+                    continue
+                if power == Power.Kill and p.has_fizzbin_protection():
+                    continue
+                choices.append({"index": k, "denomination": 0, "power": "", "label": p.name})
+            if choices:
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                prompts = {
+                    Power.Kill:    "Kill: Choose an opponent's top pile card to destroy:",
+                    Power.Discard: "Discard: Choose an opponent to lose a random hand card:",
+                    Power.Score:   "Score: Choose an opponent — you score their next card's value:",
+                    Power.Bij:     "Bij: Choose an opponent to secretly place a card under their pile:",
+                }
+                self.input_prompt = prompts[power]
+                self.input_choices = choices
+                return True
+
+        return False
+
+    def _handle_power_choice(self, choice_index):
+        """Apply the effect chosen by the human, then continue the turn."""
+        self.waiting_for_input = False
+        self.input_mode = "play_card"
+        card_copy = self.pending_power_effect
+        self.pending_power_effect = None
+        power = card_copy.power
+        player = self.players[self.human_index]
+
+        if power == Power.Replay:
+            candidates = [c for c in player.play_pile.deck if c.power != Power.Replay]
+            chosen = candidates[choice_index]
+            player.action_replay(chosen)
+            replayed = player.play_pile.get_top_card_of_deck()
+            self.last_card_played = replayed
+            self.is_chain_broken = False
+            self._add_log("  Replay: you replay %d %s" % (replayed.denomination, replayed.power.name), "info")
+
+        elif power == Power.Cache:
+            chosen = player.hand.deck[choice_index]
+            self._add_log("  Cache: you cache %d %s and draw a card" % (chosen.denomination, chosen.power.name), "info")
+            player.action_cache(chosen)
+
+        elif power == Power.Recycle:
+            target_key = choice_index  # index field holds the player key
+            self.players[target_key].action_recycle_discard()
+            name = "Your discard" if target_key == self.human_index else "%s's discard" % self.players[target_key].name
+            self._add_log("  Recycle: %s shuffled into their deck" % name, "info")
+
+        elif power == Power.Copy:
+            target_key = choice_index
+            target_top = self.players[target_key].play_pile.get_top_card_of_deck()
+            if target_top and target_top.power not in (Power.Copy, Power.Sabotage):
+                from deck import Card
+                proxy = Card(card_copy.denomination, target_top.power, card_copy.owner)
+                self._add_log("  Copy: you copy %s's %s power" % (self.players[target_key].name, target_top.power.name), "info")
+                self._apply_effects(self.human_index, proxy)
+
+        elif power == Power.Kill:
+            target_key = choice_index
+            target = self.players[target_key]
+            if not target.is_fold_protected() and not target.has_fizzbin_protection():
+                killed = target.action_kill_top_play_pile()
+                if killed:
+                    self._add_log("  Kill: you destroy %s's %d %s" % (target.name, killed.denomination, killed.power.name), "info")
+                    if killed.power == Power.Replicate and not target.hand.is_empty():
+                        best = max(target.hand.deck, key=lambda c: c.denomination)
+                        target.hand.remove_card(best)
+                        target.play_pile.add_card(best)
+
+        elif power == Power.Discard:
+            target_key = choice_index
+            target = self.players[target_key]
+            if not target.is_fold_protected():
+                discarded_denom = target.action_discard_random_hand_card()
+                if discarded_denom > 0:
+                    if target.has_power_in_play_pile(Power.Tally):
+                        halved = discarded_denom // 2
+                        player.score["round%s" % self.round_num] = player.score.get("round%s" % self.round_num, 0) + halved
+                        target.score["round%s" % self.round_num] = target.score.get("round%s" % self.round_num, 0) + halved
+                        self._add_log("  Discard: %s loses %d (Tally: both score %d)" % (target.name, discarded_denom, halved), "info")
+                    else:
+                        player.score["round%s" % self.round_num] = player.score.get("round%s" % self.round_num, 0) + discarded_denom
+                        self._add_log("  Discard: you score %d from %s's hand" % (discarded_denom, target.name), "info")
+
+        elif power == Power.Score:
+            target_key = choice_index
+            self.pending_score[target_key] = self.human_index
+            self._add_log("  Score: you will score %s's next card" % self.players[target_key].name, "info")
+
+        elif power == Power.Bij:
+            target_key = choice_index
+            target = self.players[target_key]
+            if not target.is_fold_protected() and not player.hand.is_empty():
+                bij_card = max(player.hand.deck, key=lambda c: c.denomination)
+                player.hand.remove_card(bij_card)
+                target.play_pile.deck.append(bij_card)
+                self.bij_registry.append((bij_card, self.human_index, target_key))
+                self._add_log("  Bij: you place %d %s under %s's pile" % (bij_card.denomination, bij_card.power.name, target.name), "info")
+
+        # Continue turn
+        if player.hand.is_empty():
+            self._end_round(self.human_index)
+            return
+        self.human_play_log_boundary = len(self.log)
         self._advance_turn()
 
     def _ai_turn(self, key):
         player = self.players[key]
         beginning_hand_size = len(player.hand.deck)
+        old_pile_len = len(player.play_pile.deck)
 
         # Find best target for poison
         others = [self.players[k] for k in self.player_keys if k != key]
@@ -565,15 +773,16 @@ class InteractiveGame:
                     played_card = new_player2.play_pile.get_top_card_of_deck()
                     self.last_card_played = played_card
                     new_player = new_player2
+                    n_new = len(new_player.play_pile.deck) - old_pile_len
+                    for card in reversed(new_player.play_pile.deck[0:n_new]):
+                        self._add_log("%s plays %d %s" % (new_player.name, card.denomination, card.power.name), "ai_play")
         else:
             self.is_chain_broken = False
             played_card = new_player.play_pile.get_top_card_of_deck()
             self.last_card_played = played_card
-
-        if played_card is not None:
-            self._add_log("%s plays %d %s" % (
-                new_player.name, played_card.denomination, played_card.power.name
-            ), "play")
+            n_new = len(new_player.play_pile.deck) - old_pile_len
+            for card in reversed(new_player.play_pile.deck[0:n_new]):
+                self._add_log("%s plays %d %s" % (new_player.name, card.denomination, card.power.name), "ai_play")
 
             if new_player.additional_action == Power.Poison:
                 # Target human if possible
@@ -704,7 +913,10 @@ class InteractiveGame:
             "waiting_for_input": self.waiting_for_input,
             "input_prompt": self.input_prompt,
             "input_choices": self.input_choices,
+            "input_mode": self.input_mode,
             "log": self.log[-50:],  # last 50 log entries
+            # Log entries added since the human's last card play (used by frontend for animation)
+            "events_since_human_play": self.log[self.human_play_log_boundary:],
         }
 
 

@@ -96,6 +96,7 @@
     }
     .log-sidebar .log-entry { padding: 1px 0; }
     .log-sidebar .log-entry.play { color: #4ecdc4; }
+    .log-sidebar .log-entry.ai_play { color: #e98c40; }
     .log-sidebar .log-entry.goes_out { color: #ffd93d; font-weight: bold; }
     .log-sidebar .log-entry.your_turn { color: #e94560; font-weight: bold; }
     .log-sidebar .log-entry.poison { color: #c44dff; }
@@ -128,10 +129,34 @@
         margin-bottom: 20px;
     }
     .game-over-banner h2 { color: #ffd93d; font-size: 28px; }
+    #opponent-play-banner {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #0f3460, #1a1a4e);
+        border: 2px solid #4ecdc4;
+        border-radius: 12px;
+        padding: 24px 40px;
+        text-align: center;
+        z-index: 1000;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        animation: fadeIn 0.2s ease-in;
+    }
+    #opponent-play-banner .banner-label { color: #a0a0b0; font-size: 13px; margin-bottom: 6px; }
+    #opponent-play-banner .banner-card { color: #ffd93d; font-size: 32px; font-weight: 700; }
+    #opponent-play-banner .banner-power { color: #4ecdc4; font-size: 16px; margin-top: 4px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -52%); } to { opacity: 1; transform: translate(-50%, -50%); } }
 </style>
 {% endblock %}
 
 {% block content %}
+<div id="opponent-play-banner">
+    <div class="banner-label" id="banner-player-name"></div>
+    <div class="banner-card" id="banner-denom"></div>
+    <div class="banner-power" id="banner-power"></div>
+</div>
 <div id="game-container">
     <div id="loading" class="card" style="text-align:center;padding:40px">Loading game...</div>
 </div>
@@ -162,7 +187,51 @@ function playCard(cardIndex) {
         body: JSON.stringify({card_index: cardIndex}),
     })
     .then(r => r.json())
-    .then(data => render(data));
+    .then(data => {
+        // If we're still waiting on a power choice, render immediately (no AI has played yet)
+        if (data.input_mode === 'power_choice') {
+            render(data);
+            return;
+        }
+        const aiPlays = (data.events_since_human_play || []).filter(e => e.type === 'ai_play');
+        if (aiPlays.length === 0) {
+            render(data);
+            return;
+        }
+        // Animate each AI play card one by one before showing the final state
+        let i = 0;
+        function showNext() {
+            if (i >= aiPlays.length) {
+                hideBanner();
+                render(data);
+                return;
+            }
+            showBanner(aiPlays[i].message);
+            i++;
+            setTimeout(showNext, 1100);
+        }
+        showNext();
+    });
+}
+
+function showBanner(message) {
+    // Parse "Name plays 100 Go" → extract parts
+    const banner = document.getElementById('opponent-play-banner');
+    const m = message.match(/^(.+) plays (\S+)\s+(.+)$/);
+    if (m) {
+        document.getElementById('banner-player-name').textContent = m[1] + ' plays';
+        document.getElementById('banner-denom').textContent = m[2];
+        document.getElementById('banner-power').textContent = m[3];
+    } else {
+        document.getElementById('banner-player-name').textContent = '';
+        document.getElementById('banner-denom').textContent = message;
+        document.getElementById('banner-power').textContent = '';
+    }
+    banner.style.display = 'block';
+}
+
+function hideBanner() {
+    document.getElementById('opponent-play-banner').style.display = 'none';
 }
 
 function render(state) {
