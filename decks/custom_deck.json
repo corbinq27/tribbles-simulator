@@ -1,0 +1,21 @@
+{
+    "cards": [
+        "6 1 Tribble - Go",
+        "1 1 Tribble - IDIC",
+        "1 1 Tribble - Party",
+        "1 1 Tribble - Replay",
+        "3 10 Tribbles - Copy",
+        "1 10 Tribbles - Advance",
+        "2 10 Tribbles - Go",
+        "4 10 Tribbles - Go",
+        "1 10 Tribbles - Cache",
+        "3 100 Tribbles - Copy",
+        "1 100 Tribbles - Recycle",
+        "2 100 Tribbles - Cache",
+        "1 1000 Tribbles - Famine",
+        "2 1000 Tribbles - Rescue",
+        "3 10000 Tribbles - Go",
+        "3 100000 Tribbles - Clone",
+        "1 100000 Tribbles - Rescue"
+    ]
+}
