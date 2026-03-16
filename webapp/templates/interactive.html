@@ -3,27 +3,22 @@
 
 {% block extra_css %}
 <style>
+    /* ── Layout ─────────────────────────────────────────────────────── */
     .game-layout {
         display: grid;
         grid-template-columns: 1fr 300px;
         gap: 20px;
+        align-items: start;
     }
-    @media (max-width: 800px) {
-        .game-layout { grid-template-columns: 1fr; }
-    }
-    .hand-area {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        min-height: 120px;
-        padding: 12px;
-    }
+    @media (max-width: 800px) { .game-layout { grid-template-columns: 1fr; } }
+
+    /* ── Card tiles ─────────────────────────────────────────────────── */
     .tribble-card {
         background: #16213e;
         border: 2px solid #0f3460;
         border-radius: 8px;
         padding: 12px;
-        min-width: 100px;
+        min-width: 90px;
         text-align: center;
         cursor: default;
         transition: all 0.2s;
@@ -31,27 +26,18 @@
     .tribble-card.playable {
         border-color: #4ecdc4;
         cursor: pointer;
-        box-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+        box-shadow: 0 0 10px rgba(78,205,196,0.3);
     }
     .tribble-card.playable:hover {
         transform: translateY(-4px);
-        box-shadow: 0 4px 15px rgba(78, 205, 196, 0.5);
+        box-shadow: 0 4px 15px rgba(78,205,196,0.5);
     }
-    .tribble-card .denom {
-        font-size: 24px;
-        font-weight: 700;
-        color: #ffd93d;
-    }
-    .tribble-card .power {
-        font-size: 12px;
-        color: #a0a0b0;
-        margin-top: 4px;
-    }
-    .pile-cards {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-    }
+    .tribble-card .denom { font-size: 22px; font-weight: 700; color: #ffd93d; }
+    .tribble-card .power { font-size: 11px; color: #a0a0b0; margin-top: 4px; }
+    .hand-area { display: flex; flex-wrap: wrap; gap: 10px; min-height: 110px; padding: 12px; }
+
+    /* ── Pile cards ─────────────────────────────────────────────────── */
+    .pile-cards { display: flex; flex-wrap: wrap; gap: 6px; }
     .pile-card {
         background: #0d0d1a;
         border: 1px solid #0f3460;
@@ -59,6 +45,8 @@
         padding: 4px 8px;
         font-size: 11px;
     }
+
+    /* ── Chain info ─────────────────────────────────────────────────── */
     .chain-info {
         background: #0f3460;
         border-radius: 8px;
@@ -66,23 +54,51 @@
         text-align: center;
         margin-bottom: 16px;
     }
-    .chain-info .last-card {
-        font-size: 28px;
-        font-weight: 700;
-        color: #4ecdc4;
-    }
+    .chain-info .last-card { font-size: 28px; font-weight: 700; color: #4ecdc4; }
     .chain-info .last-power { color: #a0a0b0; }
     .chain-info .chain-broken { color: #ff6b6b; font-weight: bold; }
-    .players-sidebar .player-info {
-        background: #16213e;
-        border: 1px solid #0f3460;
-        border-radius: 6px;
-        padding: 12px;
-        margin-bottom: 8px;
+
+    /* ── Prompt area ─────────────────────────────────────────────────── */
+    .prompt-area {
+        background: #0f3460;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        margin-bottom: 16px;
     }
-    .player-info.human { border-color: #4ecdc4; }
-    .player-info .name { font-weight: 600; color: #e94560; }
-    .player-info .stats { font-size: 12px; color: #a0a0b0; margin-top: 4px; }
+    .prompt-area h3 { color: #ffd93d; margin: 0 0 12px; }
+    .choice-btn {
+        display: inline-block;
+        margin: 5px;
+        padding: 9px 18px;
+        background: #e94560;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: background 0.15s;
+    }
+    .choice-btn:hover { background: #c73652; }
+    .choice-btn.secondary {
+        background: #2a2a5a;
+        border: 1px solid #4ecdc4;
+        color: #4ecdc4;
+    }
+    .choice-btn.secondary:hover { background: #1a1a4a; }
+
+    /* ── Game-over banner ────────────────────────────────────────────── */
+    .game-over-banner {
+        background: linear-gradient(135deg, #0f3460, #e94560);
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .game-over-banner h2 { color: #ffd93d; font-size: 28px; margin: 0 0 12px; }
+
+    /* ── Log ─────────────────────────────────────────────────────────── */
     .log-sidebar {
         background: #0d0d1a;
         border: 1px solid #0f3460;
@@ -94,79 +110,159 @@
         font-size: 11px;
         line-height: 1.5;
     }
-    .log-sidebar .log-entry { padding: 1px 0; }
-    .log-sidebar .log-entry.play { color: #4ecdc4; }
-    .log-sidebar .log-entry.ai_play { color: #e98c40; }
-    .log-sidebar .log-entry.goes_out { color: #ffd93d; font-weight: bold; }
-    .log-sidebar .log-entry.your_turn { color: #e94560; font-weight: bold; }
-    .log-sidebar .log-entry.poison { color: #c44dff; }
-    .prompt-area {
-        background: #0f3460;
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-        margin-bottom: 16px;
-    }
-    .prompt-area h3 { color: #ffd93d; }
-    .choice-btn {
-        display: inline-block;
-        margin: 6px;
-        padding: 10px 20px;
-        background: #e94560;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 600;
-    }
-    .choice-btn:hover { background: #c73652; }
-    .game-over-banner {
-        background: linear-gradient(135deg, #0f3460, #e94560);
-        border-radius: 12px;
-        padding: 24px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .game-over-banner h2 { color: #ffd93d; font-size: 28px; }
-    #opponent-play-banner {
+    .log-entry { padding: 1px 0; color: #c0c0d0; }
+    .log-entry.play       { color: #4ecdc4; }
+    .log-entry.ai_play    { color: #e98c40; }
+    .log-entry.goes_out   { color: #ffd93d; font-weight: bold; }
+    .log-entry.your_turn  { color: #e94560; font-weight: bold; }
+    .log-entry.poison     { color: #c44dff; }
+    .log-entry.skip       { color: #e9a040; }
+    .log-entry.chain_broken { color: #ff6b6b; }
+    .log-entry.round_start  { color: #4ecdc4; font-weight: bold; }
+
+    /* ── Right column ────────────────────────────────────────────────── */
+    .right-column { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── Opponent play viewer ────────────────────────────────────────── */
+    #play-viewer {
         display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: linear-gradient(135deg, #0f3460, #1a1a4e);
+        background: linear-gradient(160deg, #0d1f44, #1a1440);
         border: 2px solid #4ecdc4;
         border-radius: 12px;
-        padding: 24px 40px;
-        text-align: center;
-        z-index: 1000;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-        animation: fadeIn 0.2s ease-in;
+        padding: 18px 16px 14px;
+        box-shadow: 0 0 20px rgba(78,205,196,0.25);
+        animation: pvFadeIn 0.25s ease-out;
     }
-    #opponent-play-banner .banner-label { color: #a0a0b0; font-size: 13px; margin-bottom: 6px; }
-    #opponent-play-banner .banner-card { color: #ffd93d; font-size: 32px; font-weight: 700; }
-    #opponent-play-banner .banner-power { color: #4ecdc4; font-size: 16px; margin-top: 4px; }
-    @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -52%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+    @keyframes pvFadeIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    #pv-player-name {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #a0a0b0;
+        margin-bottom: 4px;
+    }
+    #pv-action-label {
+        font-size: 16px;
+        font-weight: 700;
+        color: #e94560;
+        margin-bottom: 14px;
+    }
+
+    /* Card display within viewer */
+    .pv-chain-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .pv-mini-card {
+        background: #16213e;
+        border: 1px solid #2a3a6a;
+        border-radius: 6px;
+        padding: 6px 10px;
+        text-align: center;
+        min-width: 56px;
+        opacity: 0.7;
+    }
+    .pv-main-card {
+        background: #16213e;
+        border: 2px solid #4ecdc4;
+        border-radius: 8px;
+        padding: 12px 14px;
+        text-align: center;
+        min-width: 72px;
+        box-shadow: 0 0 16px rgba(78,205,196,0.4);
+    }
+    .pv-card-denom      { font-size: 22px; font-weight: 700; color: #ffd93d; }
+    .pv-mini-card .pv-card-denom { font-size: 14px; }
+    .pv-card-power      { font-size: 11px; color: #a0a0b0; margin-top: 3px; }
+    .pv-arrow           { color: #4ecdc4; font-size: 22px; font-weight: bold; }
+
+    /* Notice row (draw / skip / chain-broken events) */
+    .pv-notice {
+        background: #16213e;
+        border: 1px solid #e98c40;
+        border-radius: 6px;
+        padding: 10px 12px;
+        color: #e98c40;
+        font-size: 13px;
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    /* Effects list */
+    #pv-effects {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #1a3a6a;
+        font-size: 12px;
+        color: #ffd93d;
+        min-height: 16px;
+        white-space: pre-line;
+        line-height: 1.6;
+    }
+
+    /* Progress dots */
+    #pv-progress {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 11px;
+        color: #505070;
+    }
+    #pv-progress .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2a3a6a; margin: 0 2px; }
+    #pv-progress .dot.active { background: #4ecdc4; }
+
+    /* ── Players sidebar ─────────────────────────────────────────────── */
+    .players-sidebar { display: flex; flex-direction: column; gap: 8px; }
+    .player-info {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        padding: 10px 12px;
+    }
+    .player-info.human         { border-color: #4ecdc4; }
+    .player-info.active-player { border-color: #e98c40; }
+    .player-info .pi-name  { font-weight: 600; color: #e94560; font-size: 13px; }
+    .player-info .pi-stats { font-size: 11px; color: #a0a0b0; margin-top: 3px; }
+    .player-info .pi-score { font-size: 12px; color: #ffd93d; margin-top: 2px; }
+    .pi-pile-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 7px;
+        padding-top: 7px;
+        border-top: 1px solid #1a2a4a;
+    }
+    .pi-pile-label { font-size: 10px; color: #505070; }
+    .pi-pile-card {
+        background: #0d0d1a;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        padding: 3px 7px;
+        font-size: 11px;
+        color: #c0c0d0;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div id="opponent-play-banner">
-    <div class="banner-label" id="banner-player-name"></div>
-    <div class="banner-card" id="banner-denom"></div>
-    <div class="banner-power" id="banner-power"></div>
-</div>
 <div id="game-container">
-    <div id="loading" class="card" style="text-align:center;padding:40px">Loading game...</div>
+    <div class="card" style="text-align:center;padding:40px">Loading game…</div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const gameId = "{{ game_id }}";
-let lastLogLen = 0;
 
+/* ── Animation state ─────────────────────────────────────────────── */
+let animating = false;
+
+/* ── Fetch initial state ─────────────────────────────────────────── */
 function fetchState() {
     fetch(`/api/interactive/${gameId}/state`)
         .then(r => r.json())
@@ -180,7 +276,9 @@ function fetchState() {
         .catch(() => setTimeout(fetchState, 2000));
 }
 
+/* ── Play a card / submit a choice ──────────────────────────────── */
 function playCard(cardIndex) {
+    if (animating) return;
     fetch(`/api/interactive/${gameId}/play`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -188,65 +286,182 @@ function playCard(cardIndex) {
     })
     .then(r => r.json())
     .then(data => {
-        // If we're still waiting on a power choice, render immediately (no AI has played yet)
-        if (data.input_mode === 'power_choice') {
+        if (data.error) { render(data); return; }
+
+        // Power-choice / roll-mulligan / bah prompts need no animation
+        const waitingModes = new Set(['power_choice', 'roll_mulligan', 'bah_choice']);
+        if (waitingModes.has(data.input_mode)) {
             render(data);
             return;
         }
-        const aiPlays = (data.events_since_human_play || []).filter(e => e.type === 'ai_play');
-        if (aiPlays.length === 0) {
+
+        const events = data.events_since_human_play || [];
+        const moments = buildMoments(events);
+        if (moments.length === 0) {
             render(data);
             return;
         }
-        // Animate each AI play card one by one before showing the final state
-        let i = 0;
-        function showNext() {
-            if (i >= aiPlays.length) {
-                hideBanner();
-                render(data);
-                return;
-            }
-            showBanner(aiPlays[i].message);
-            i++;
-            setTimeout(showNext, 1100);
-        }
-        showNext();
+        animateMoments(moments, data);
     });
 }
 
-function showBanner(message) {
-    // Parse "Name plays 100 Go" → extract parts
-    const banner = document.getElementById('opponent-play-banner');
-    const m = message.match(/^(.+) plays (\S+)\s+(.+)$/);
-    if (m) {
-        document.getElementById('banner-player-name').textContent = m[1] + ' plays';
-        document.getElementById('banner-denom').textContent = m[2];
-        document.getElementById('banner-power').textContent = m[3];
-    } else {
-        document.getElementById('banner-player-name').textContent = '';
-        document.getElementById('banner-denom').textContent = message;
-        document.getElementById('banner-power').textContent = '';
+/* ── Build display moments from event list ───────────────────────── */
+/*
+   Moments are of two kinds:
+   - 'play'   : an ai_play event + any immediately-following effect events
+   - 'notice' : a standalone event (draw, skip, chain_broken, etc.)
+*/
+const EFFECT_TYPES = new Set(['info', 'poison', 'goes_out', 'decked', 'round_end', 'round_start', 'final_score', 'game_over']);
+const NOTICE_TYPES = new Set(['draw', 'chain_broken', 'skip']);
+const SKIP_TYPES   = new Set(['status', 'your_turn']);
+
+function buildMoments(events) {
+    const moments = [];
+    let current = null;
+
+    for (const e of events) {
+        if (SKIP_TYPES.has(e.type)) continue;
+
+        if (e.type === 'ai_play') {
+            if (current) moments.push(current);
+            current = { kind: 'play', event: e, effects: [] };
+        } else if (NOTICE_TYPES.has(e.type)) {
+            if (current && current.kind === 'play') {
+                // draw after a play means they drew THEN played — treat as effect
+                current.effects.push(e);
+            } else {
+                if (current) moments.push(current);
+                current = { kind: 'notice', event: e };
+            }
+        } else if (EFFECT_TYPES.has(e.type)) {
+            if (current) {
+                current.effects = current.effects || [];
+                current.effects.push(e);
+            } else {
+                // standalone effect with no preceding play
+                current = { kind: 'notice', event: e };
+            }
+        }
     }
-    banner.style.display = 'block';
+    if (current) moments.push(current);
+    return moments;
 }
 
-function hideBanner() {
-    document.getElementById('opponent-play-banner').style.display = 'none';
+/* ── Parse "Name plays 100 Go" ───────────────────────────────────── */
+function parsePlay(message) {
+    const m = message.match(/^(.+?) plays (\S+)\s+(.+)$/);
+    if (m) return { player: m[1], denomination: m[2], power: m[3] };
+    return null;
 }
 
+/* ── Show the play-viewer panel ──────────────────────────────────── */
+function showPlayViewer(moment, lastCard, momentIndex, totalMoments) {
+    const viewer = document.getElementById('play-viewer');
+
+    if (moment.kind === 'play') {
+        const parsed = parsePlay(moment.event.message);
+        if (!parsed) return lastCard;
+
+        document.getElementById('pv-player-name').textContent = parsed.player;
+        document.getElementById('pv-action-label').textContent = 'plays ' + parsed.denomination + ' ' + parsed.power;
+
+        // Chain context row
+        const chainRow = document.getElementById('pv-chain-row');
+        const prevWrap = document.getElementById('pv-prev-wrap');
+        if (lastCard) {
+            document.getElementById('pv-prev-denom').textContent = lastCard.denomination;
+            document.getElementById('pv-prev-power').textContent = lastCard.power;
+            prevWrap.style.display = '';
+            document.getElementById('pv-arrow').style.display = '';
+        } else {
+            prevWrap.style.display = 'none';
+            document.getElementById('pv-arrow').style.display = 'none';
+        }
+        document.getElementById('pv-new-denom').textContent = parsed.denomination;
+        document.getElementById('pv-new-power').textContent = parsed.power;
+        chainRow.style.display = 'flex';
+
+        // Notice hidden
+        document.getElementById('pv-notice').style.display = 'none';
+
+        // Effects
+        const effectLines = (moment.effects || []).map(e => e.message.trim()).join('\n');
+        document.getElementById('pv-effects').textContent = effectLines;
+
+        // Progress dots
+        renderDots(momentIndex, totalMoments);
+        viewer.style.display = 'block';
+
+        return { denomination: parsed.denomination, power: parsed.power };
+    } else {
+        // Notice (draw, skip, chain_broken…)
+        document.getElementById('pv-player-name').textContent = '';
+        document.getElementById('pv-action-label').textContent = '';
+        document.getElementById('pv-chain-row').style.display = 'none';
+        const notice = document.getElementById('pv-notice');
+        notice.textContent = moment.event.message;
+        notice.style.display = 'block';
+        document.getElementById('pv-effects').textContent =
+            (moment.effects || []).map(e => e.message.trim()).join('\n');
+        renderDots(momentIndex, totalMoments);
+        viewer.style.display = 'block';
+        return lastCard;
+    }
+}
+
+function renderDots(active, total) {
+    if (total <= 1) { document.getElementById('pv-progress').innerHTML = ''; return; }
+    let html = '';
+    for (let i = 0; i < total; i++) {
+        html += `<span class="dot${i === active ? ' active' : ''}"></span>`;
+    }
+    document.getElementById('pv-progress').innerHTML = html;
+}
+
+function hidePlayViewer() {
+    document.getElementById('play-viewer').style.display = 'none';
+}
+
+/* ── Step through all moments, then render final state ───────────── */
+function animateMoments(moments, stateData) {
+    if (moments.length === 0) { render(stateData); return; }
+
+    animating = true;
+    let i = 0;
+    let lastCard = stateData.chain_before_ai || null;
+
+    function next() {
+        if (i >= moments.length) {
+            hidePlayViewer();
+            animating = false;
+            render(stateData);
+            return;
+        }
+        const moment = moments[i];
+        lastCard = showPlayViewer(moment, lastCard, i, moments.length);
+        i++;
+        const delay = moment.kind === 'play' ? 3000 : 1500;
+        setTimeout(next, delay);
+    }
+    next();
+}
+
+/* ── Render full game state ──────────────────────────────────────── */
 function render(state) {
     let html = '';
 
-    // Game over banner
     if (state.game_over) {
         html += '<div class="game-over-banner"><h2>Game Over!</h2>';
-        state.players.forEach(p => {
-            html += `<div style="color:white;font-size:18px;margin:4px">${p.name}: ${p.score} points</div>`;
+        (state.players || []).forEach(p => {
+            html += `<div style="color:white;font-size:17px;margin:4px">${p.name}: ${p.score.toLocaleString()} pts</div>`;
         });
         html += '</div>';
     }
 
-    html += '<div class="game-layout"><div class="main-area">';
+    html += '<div class="game-layout">';
+
+    /* ── Left: main play area ── */
+    html += '<div class="main-area">';
 
     // Chain info
     html += '<div class="chain-info">';
@@ -256,73 +471,102 @@ function render(state) {
         html += `<div class="last-power">${state.last_card.power}</div>`;
     } else {
         html += '<div class="last-card">Start</div>';
-        html += '<div class="last-power">Play a 1-denomination card</div>';
+        html += '<div class="last-power">Play a 1-denomination card to begin</div>';
     }
     if (state.chain_broken) {
-        html += '<div class="chain-broken">Chain Broken!</div>';
+        html += '<div class="chain-broken">⚡ Chain Broken — play a 1 or Advance</div>';
     }
     html += '</div>';
 
-    // Prompt / choices
+    // Prompt
     if (state.waiting_for_input && !state.game_over) {
         html += '<div class="prompt-area">';
         html += `<h3>${state.input_prompt}</h3>`;
-        state.input_choices.forEach(c => {
-            html += `<button class="choice-btn" onclick="playCard(${c.index})">${c.label}</button>`;
+        (state.input_choices || []).forEach(c => {
+            const isSkip = c.index === -1;
+            html += `<button class="choice-btn${isSkip ? ' secondary' : ''}" onclick="playCard(${c.index})">${c.label}</button>`;
         });
         html += '</div>';
     }
 
     // Your hand
+    const playableSet = new Set((state.input_choices || []).map(c => c.index));
     html += '<div class="card"><h3>Your Hand</h3><div class="hand-area">';
-    const playableIndices = new Set((state.input_choices || []).map(c => c.index));
-    state.hand.forEach((card, idx) => {
-        const isPlayable = state.waiting_for_input && playableIndices.has(idx);
-        html += `<div class="tribble-card ${isPlayable ? 'playable' : ''}" ${isPlayable ? `onclick="playCard(${idx})"` : ''}>`;
+    (state.hand || []).forEach((card, idx) => {
+        const ok = state.waiting_for_input && state.input_mode === 'play_card' && playableSet.has(idx);
+        html += `<div class="tribble-card${ok ? ' playable' : ''}" ${ok ? `onclick="playCard(${idx})"` : ''}>`;
         html += `<div class="denom">${card.denomination}</div>`;
         html += `<div class="power">${card.power}</div>`;
         html += '</div>';
     });
-    if (state.hand.length === 0) {
+    if (!state.hand || state.hand.length === 0) {
         html += '<div style="color:#666;padding:20px">Empty</div>';
     }
     html += '</div></div>';
 
     // Your play pile
     html += '<div class="card"><h3>Your Play Pile</h3><div class="pile-cards">';
-    state.play_pile.forEach(card => {
+    (state.play_pile || []).forEach(card => {
         html += `<span class="pile-card">${card.denomination} ${card.power}</span>`;
     });
-    if (state.play_pile.length === 0) {
+    if (!state.play_pile || state.play_pile.length === 0) {
         html += '<span style="color:#666">Empty</span>';
     }
     html += '</div></div>';
 
-    // Log
+    // Game log
     html += '<div class="card"><h3>Game Log</h3><div class="log-sidebar" id="log-area">';
     (state.log || []).forEach(entry => {
         html += `<div class="log-entry ${entry.type || ''}">${entry.message}</div>`;
     });
     html += '</div></div>';
 
-    html += '</div>'; // end main-area
+    html += '</div>'; /* end main-area */
 
-    // Sidebar - all players
+    /* ── Right: play viewer + player sidebar ── */
+    html += '<div class="right-column">';
+
+    // Play viewer (kept in DOM; shown/hidden by animation)
+    html += `
+    <div id="play-viewer">
+        <div id="pv-player-name"></div>
+        <div id="pv-action-label"></div>
+        <div class="pv-chain-row" id="pv-chain-row">
+            <div class="pv-mini-card" id="pv-prev-wrap">
+                <div class="pv-card-denom" id="pv-prev-denom"></div>
+                <div class="pv-card-power" id="pv-prev-power">was</div>
+            </div>
+            <div class="pv-arrow" id="pv-arrow">→</div>
+            <div class="pv-main-card">
+                <div class="pv-card-denom" id="pv-new-denom"></div>
+                <div class="pv-card-power" id="pv-new-power"></div>
+            </div>
+        </div>
+        <div class="pv-notice" id="pv-notice" style="display:none"></div>
+        <div id="pv-effects"></div>
+        <div id="pv-progress"></div>
+    </div>`;
+
+    // Player sidebar
     html += '<div class="players-sidebar">';
-    state.players.forEach(p => {
-        html += `<div class="player-info ${p.is_human ? 'human' : ''}">`;
-        html += `<div class="name">${p.name}${p.is_human ? ' (You)' : ''}</div>`;
-        html += `<div class="stats">Hand: ${p.hand_count} | Pile: ${p.pile_count} | Deck: ${p.deck_count} | Discard: ${p.discard_count}</div>`;
-        html += `<div class="stats">Score: <strong>${p.score}</strong></div>`;
+    (state.players || []).forEach(p => {
+        html += `<div class="player-info${p.is_human ? ' human' : ''}">`;
+        html += `<div class="pi-name">${p.name}${p.is_human ? ' <span style="color:#4ecdc4">(You)</span>' : ''}</div>`;
+        html += `<div class="pi-stats">Hand: ${p.hand_count} &nbsp;|&nbsp; Pile: ${p.pile_count} &nbsp;|&nbsp; Deck: ${p.deck_count} &nbsp;|&nbsp; Discard: ${p.discard_count}</div>`;
+        html += `<div class="pi-score">Score: <strong>${p.score.toLocaleString()}</strong></div>`;
+        if (!p.is_human && p.pile_top) {
+            html += `<div class="pi-pile-top"><span class="pi-pile-label">Top card:</span><span class="pi-pile-card">${p.pile_top.denomination} ${p.pile_top.power}</span></div>`;
+        }
         html += '</div>';
     });
-    html += '</div>';
+    html += '</div>'; /* end players-sidebar */
 
-    html += '</div>'; // end game-layout
+    html += '</div>'; /* end right-column */
+    html += '</div>'; /* end game-layout */
 
     document.getElementById('game-container').innerHTML = html;
 
-    // Scroll log
+    // Scroll log to bottom
     const logArea = document.getElementById('log-area');
     if (logArea) logArea.scrollTop = logArea.scrollHeight;
 }

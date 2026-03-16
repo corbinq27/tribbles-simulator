@@ -339,10 +339,18 @@ class InteractiveGame:
         self.turn_count = 0
 
         # Power-choice state (for powers that need human decisions)
-        self.input_mode = "play_card"   # "play_card" | "power_choice"
+        self.input_mode = "play_card"   # "play_card" | "power_choice" | "roll_mulligan" | "bah_choice"
         self.pending_power_effect = None  # Card whose power is pending resolution
         # Log boundary: entries at/after this index were added since the human's last card play
         self.human_play_log_boundary = 0
+        # chain state at the moment the human finishes their turn (before AI plays)
+        self.chain_before_ai = None
+        # Exchange two-step state
+        self.exchange_step = 0
+        self.exchange_hand_card_index = None
+        # Freeze / Rival ordered power lists for choice mapping
+        self._freeze_power_list = []
+        self._rival_power_list = []
 
         # Shuffle and start
         for k in self.player_keys:
@@ -376,6 +384,32 @@ class InteractiveGame:
                 if p.has_power_in_play_pile(Power.Roll):
                     hs = len(p.hand.deck)
                     p.action_mulligan(hs)
+
+        # Roll mulligan offer for human player
+        human = self.players[self.human_index]
+        if human.has_power_in_play_pile(Power.Roll) and not human.hand.is_empty():
+            hs = len(human.hand.deck)
+            self.input_mode = "roll_mulligan"
+            self.waiting_for_input = True
+            self.input_prompt = "Roll: You have Roll in your pile. Mulligan your hand?"
+            self.input_choices = [
+                {"index": 1, "denomination": 0, "power": "Roll",
+                 "label": "Yes — discard hand and draw %d new cards" % hs},
+                {"index": 0, "denomination": 0, "power": "",
+                 "label": "No — keep my current hand"},
+            ]
+            # Reset turn state but do NOT call _next_turn yet — wait for human response
+            self.last_card_played = None
+            self.is_chain_broken = False
+            self.play_direction = 1
+            self.players_to_skip = {}
+            self.pending_score = {}
+            self.bij_registry = []
+            self.frozen_ref = [None]
+            self.current_idx = 0
+            self.turn_count = 0
+            self.human_play_log_boundary = len(self.log)
+            return
 
         # Reset turn state
         self.last_card_played = None
@@ -415,8 +449,23 @@ class InteractiveGame:
             self.players_to_skip[current_key] -= 1
             self._add_log("%s is skipped" % self.players[current_key].name, "skip")
             bah_cards = [c for c in self.players[current_key].hand.deck if c.power == Power.Bah]
-            if bah_cards and current_key != self.human_index:
+            if bah_cards and current_key == self.human_index:
+                # Offer human the Bah choice before advancing
+                bah_card = bah_cards[0]
+                self.input_mode = "bah_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "You are skipped! You have Bah — place it under your play pile?"
+                self.input_choices = [
+                    {"index": 1, "denomination": bah_card.denomination, "power": "Bah",
+                     "label": "Yes — place %d Bah under my pile" % bah_card.denomination},
+                    {"index": 0, "denomination": 0, "power": "",
+                     "label": "No — skip without Bah"},
+                ]
+                self.human_play_log_boundary = len(self.log)
+                return
+            elif bah_cards and current_key != self.human_index:
                 self.players[current_key].action_place_card_under_play_pile(bah_cards[0])
+                self._add_log("  %s places Bah under their pile" % self.players[current_key].name, "info")
             self._advance_turn()
             return
 
@@ -483,6 +532,12 @@ class InteractiveGame:
         if self.input_mode == "power_choice":
             self._handle_power_choice(card_index)
             return
+        if self.input_mode == "roll_mulligan":
+            self._handle_roll_mulligan(card_index)
+            return
+        if self.input_mode == "bah_choice":
+            self._handle_bah_choice(card_index)
+            return
 
         self.waiting_for_input = False
         player = self.players[self.human_index]
@@ -536,6 +591,38 @@ class InteractiveGame:
             self._end_round(self.human_index)
             return
 
+        self.chain_before_ai = self.last_card_played
+        self.human_play_log_boundary = len(self.log)
+        self._advance_turn()
+
+    # ------------------------------------------------------------------
+    # Roll mulligan and Bah handlers (input modes triggered outside of a card play)
+    # ------------------------------------------------------------------
+
+    def _handle_roll_mulligan(self, choice_index):
+        """Handle the human's Roll mulligan decision at round start."""
+        self.waiting_for_input = False
+        self.input_mode = "play_card"
+        if choice_index == 1:  # Yes — mulligan
+            player = self.players[self.human_index]
+            hs = len(player.hand.deck)
+            player.action_mulligan(hs)
+            self._add_log("Roll: you mulligan your hand and draw %d new cards" % hs, "info")
+        else:
+            self._add_log("Roll: you keep your hand", "info")
+        self._next_turn()
+
+    def _handle_bah_choice(self, choice_index):
+        """Handle the human's Bah choice when they are skipped."""
+        self.waiting_for_input = False
+        self.input_mode = "play_card"
+        if choice_index == 1:  # Yes — place Bah
+            player = self.players[self.human_index]
+            bah_cards = [c for c in player.hand.deck if c.power == Power.Bah]
+            if bah_cards:
+                player.action_place_card_under_play_pile(bah_cards[0])
+                self._add_log("  Bah: you place %d Bah under your pile" % bah_cards[0].denomination, "info")
+        self.chain_before_ai = self.last_card_played
         self.human_play_log_boundary = len(self.log)
         self._advance_turn()
 
@@ -637,7 +724,7 @@ class InteractiveGame:
                 self.input_choices = choices + [self._SKIP_CHOICE]
                 return True
 
-        elif power in (Power.Kill, Power.Discard, Power.Score, Power.Bij):
+        elif power in (Power.Kill, Power.Discard, Power.Score, Power.Bij, Power.Battle, Power.Sabotage):
             choices = []
             for k in self.player_keys:
                 if k == self.human_index:
@@ -647,7 +734,12 @@ class InteractiveGame:
                     continue
                 if power == Power.Kill and p.has_fizzbin_protection():
                     continue
-                choices.append({"index": k, "denomination": 0, "power": "", "label": p.name})
+                if power == Power.Sabotage and p.deck.is_empty():
+                    continue
+                label = p.name
+                if power == Power.Sabotage:
+                    label = "%s (deck: %d)" % (p.name, len(p.deck.deck))
+                choices.append({"index": k, "denomination": 0, "power": "", "label": label})
             if choices:
                 self.pending_power_effect = card_copy
                 self.input_mode = "power_choice"
@@ -657,9 +749,79 @@ class InteractiveGame:
                     Power.Discard: "Discard: Choose an opponent to lose a random hand card:",
                     Power.Score:   "Score: Choose an opponent — you score their next card's value:",
                     Power.Bij:     "Bij: Choose an opponent to secretly place a card under their pile:",
+                    Power.Battle:  "Battle: Choose an opponent to battle (reveal top 3 deck cards each):",
+                    Power.Sabotage: "Sabotage: Choose an opponent to sabotage (discard their top deck card):",
                 }
                 self.input_prompt = prompts[power]
                 self.input_choices = choices + [self._SKIP_CHOICE]
+                return True
+
+        elif power == Power.Exchange:
+            if not player.hand.is_empty() and not player.discard_pile.is_empty():
+                self.exchange_step = 1
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Exchange: Choose a card from your hand to discard:"
+                self.input_choices = [
+                    {"index": i, "denomination": c.denomination, "power": c.power.name,
+                     "label": "%d %s" % (c.denomination, c.power.name)}
+                    for i, c in enumerate(player.hand.deck)
+                ] + [self._SKIP_CHOICE]
+                return True
+
+        elif power == Power.Wager:
+            top3 = player.deck.deck[:min(3, len(player.deck.deck))]
+            if top3:
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Wager: Peek at the top 3 cards — choose which to put on top:"
+                self.input_choices = [
+                    {"index": i, "denomination": c.denomination, "power": c.power.name,
+                     "label": "%d %s" % (c.denomination, c.power.name)}
+                    for i, c in enumerate(top3)
+                ] + [self._SKIP_CHOICE]
+                return True
+
+        elif power == Power.Freeze:
+            power_counts = {}
+            for k in self.player_keys:
+                if k == self.human_index:
+                    continue
+                for c in self.players[k].hand.deck:
+                    power_counts[c.power] = power_counts.get(c.power, 0) + 1
+            if power_counts:
+                ordered = sorted(power_counts.items(), key=lambda x: -x[1])
+                self._freeze_power_list = [p for p, _ in ordered]
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Freeze: Choose a power to freeze (opponents can't play it until your next turn):"
+                self.input_choices = [
+                    {"index": i, "denomination": cnt, "power": pw.name,
+                     "label": "%s (%d in opponent hands)" % (pw.name, cnt)}
+                    for i, (pw, cnt) in enumerate(ordered)
+                ] + [self._SKIP_CHOICE]
+                return True
+
+        elif power == Power.Rival:
+            power_counts = {}
+            for k in self.player_keys:
+                for c in self.players[k].discard_pile.deck:
+                    power_counts[c.power] = power_counts.get(c.power, 0) + 1
+            if power_counts:
+                ordered = sorted(power_counts.items(), key=lambda x: -x[1])
+                self._rival_power_list = [p for p, _ in ordered]
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Rival: Name a power — all copies are removed from every discard pile:"
+                self.input_choices = [
+                    {"index": i, "denomination": cnt, "power": pw.name,
+                     "label": "%s (%d in discard piles)" % (pw.name, cnt)}
+                    for i, (pw, cnt) in enumerate(ordered)
+                ] + [self._SKIP_CHOICE]
                 return True
 
         return False
@@ -676,9 +838,11 @@ class InteractiveGame:
         # -1 means the player chose to skip the power entirely
         if choice_index == -1:
             self._add_log("  %s power skipped" % power.name, "info")
+            self.exchange_step = 0  # reset any mid-exchange state
             if player.hand.is_empty():
                 self._end_round(self.human_index)
                 return
+            self.chain_before_ai = self.last_card_played
             self.human_play_log_boundary = len(self.log)
             self._advance_turn()
             return
@@ -772,10 +936,95 @@ class InteractiveGame:
                 self.bij_registry.append((bij_card, self.human_index, target_key))
                 self._add_log("  Bij: you place %d %s under %s's pile" % (bij_card.denomination, bij_card.power.name, target.name), "info")
 
+        elif power == Power.Battle:
+            target_key = choice_index
+            target = self.players[target_key]
+            if not target.is_fold_protected():
+                my_total, my_cards = player.action_battle_reveal()
+                their_total, their_cards = target.action_battle_reveal()
+                all_cards = my_cards + their_cards
+                self._add_log("  Battle: you reveal %d, %s reveals %d" % (my_total, target.name, their_total), "info")
+                if my_total >= their_total:
+                    player.action_battle_receive_cards(all_cards)
+                    self._add_log("  Battle: you win and take all %d revealed cards" % len(all_cards), "info")
+                else:
+                    target.action_battle_receive_cards(all_cards)
+                    self._add_log("  Battle: %s wins and takes all %d revealed cards" % (target.name, len(all_cards)), "info")
+
+        elif power == Power.Sabotage:
+            target_key = choice_index
+            target = self.players[target_key]
+            if not target.is_fold_protected() and not target.deck.is_empty():
+                sabotaged = target.deck.get_top_card_and_remove_card()
+                target.discard_pile.add_card(sabotaged)
+                self._add_log("  Sabotage: you discard %s's %d %s" % (target.name, sabotaged.denomination, sabotaged.power.name), "info")
+                safe_to_recurse = sabotaged.power not in (
+                    Power.Sabotage, Power.Copy, Power.Stampede,
+                    Power.Flood, Power.Qapla, Power.Ante, Power.Battle
+                )
+                if safe_to_recurse:
+                    from deck import Card as _Card
+                    proxy = _Card(card_copy.denomination, sabotaged.power, card_copy.owner)
+                    self._apply_effects(self.human_index, proxy)
+
+        elif power == Power.Exchange:
+            if self.exchange_step == 1:
+                # Step 1 result: user chose a hand card; set up step 2
+                self.exchange_hand_card_index = choice_index
+                self.exchange_step = 2
+                choices = [
+                    {"index": i, "denomination": c.denomination, "power": c.power.name,
+                     "label": "%d %s" % (c.denomination, c.power.name)}
+                    for i, c in enumerate(player.discard_pile.deck)
+                ]
+                self.pending_power_effect = card_copy
+                self.input_mode = "power_choice"
+                self.waiting_for_input = True
+                self.input_prompt = "Exchange: Choose a card from the discard pile to take into your hand:"
+                self.input_choices = choices + [self._SKIP_CHOICE]
+                return  # Don't advance turn yet
+            elif self.exchange_step == 2:
+                self.exchange_step = 0
+                hand_card = player.hand.deck[self.exchange_hand_card_index]
+                discard_card = player.discard_pile.deck[choice_index]
+                player.action_exchange(hand_card, discard_card)
+                self._add_log("  Exchange: you discard %d %s and take %d %s" % (
+                    hand_card.denomination, hand_card.power.name,
+                    discard_card.denomination, discard_card.power.name), "info")
+
+        elif power == Power.Wager:
+            n = min(3, len(player.deck.deck))
+            top3 = player.deck.deck[:n]
+            chosen = top3[choice_index]
+            others = [top3[i] for i in range(n) if i != choice_index]
+            others.sort(key=lambda c: c.denomination)
+            player.deck.deck = [chosen] + others + player.deck.deck[n:]
+            self._add_log("  Wager: you put %d %s on top of your deck" % (chosen.denomination, chosen.power.name), "info")
+
+        elif power == Power.Freeze:
+            if self._freeze_power_list and choice_index < len(self._freeze_power_list):
+                chosen_power = self._freeze_power_list[choice_index]
+                self.frozen_ref[0] = (chosen_power, self.human_index)
+                self._add_log("  Freeze: %s is frozen until your next turn" % chosen_power.name, "info")
+
+        elif power == Power.Rival:
+            if self._rival_power_list and choice_index < len(self._rival_power_list):
+                rival_power = self._rival_power_list[choice_index]
+                total_removed = 0
+                for k in self.player_keys:
+                    p = self.players[k]
+                    removed = [c for c in p.discard_pile.deck if c.power == rival_power]
+                    p.discard_pile.deck = [c for c in p.discard_pile.deck if c.power != rival_power]
+                    total_removed += len(removed)
+                    for c in removed:
+                        p.out_of_play_pile.add_card(c)
+                self._add_log("  Rival: %d %s cards removed from all discard piles" % (total_removed, rival_power.name), "info")
+
         # Continue turn
         if player.hand.is_empty():
             self._end_round(self.human_index)
             return
+        self.chain_before_ai = self.last_card_played
         self.human_play_log_boundary = len(self.log)
         self._advance_turn()
 
@@ -942,6 +1191,7 @@ class InteractiveGame:
         all_players = []
         for k in self.player_keys:
             p = self.players[k]
+            top = p.play_pile.get_top_card_of_deck()
             all_players.append({
                 "name": p.name,
                 "hand_count": len(p.hand.deck),
@@ -950,7 +1200,15 @@ class InteractiveGame:
                 "discard_count": len(p.discard_pile.deck),
                 "score": p.get_players_score(),
                 "is_human": k == self.human_index,
+                "pile_top": {"denomination": top.denomination, "power": top.power.name} if top else None,
             })
+
+        chain_before_ai = None
+        if self.chain_before_ai:
+            chain_before_ai = {
+                "denomination": self.chain_before_ai.denomination,
+                "power": self.chain_before_ai.power.name,
+            }
 
         return {
             "hand": hand_cards,
@@ -967,6 +1225,8 @@ class InteractiveGame:
             "log": self.log[-50:],  # last 50 log entries
             # Log entries added since the human's last card play (used by frontend for animation)
             "events_since_human_play": self.log[self.human_play_log_boundary:],
+            # Chain state when human ended their turn (used by frontend for animation context)
+            "chain_before_ai": chain_before_ai,
         }
 
 
