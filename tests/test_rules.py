@@ -1263,5 +1263,136 @@ class TestTallyPower(unittest.TestCase):
         self.assertFalse(p.has_power_in_play_pile(Power.Tally))
 
 
+# ===========================================================================
+# AI Evaluator tests (_evaluate_state scoring logic)
+# ===========================================================================
+
+class TestAIEvaluator(unittest.TestCase):
+    """Tests for the weighted _evaluate_state scoring function in Player."""
+
+    def _make_player_state(self, hand_cards=None, pile_cards=None, name="test"):
+        """Helper: build a player with specific hand and play pile."""
+        p = Player(name, None, 5)
+        for c in (hand_cards or []):
+            p.hand.add_card(c)
+        for c in (pile_cards or []):
+            p.play_pile.add_card(c)
+        return p
+
+    def test_going_out_scores_higher_than_not(self):
+        """A state where the hand is empty should score much higher."""
+        evaluator = Player("eval", None, 5)
+        # State A: hand empty, pile has cards (going out)
+        state_a = self._make_player_state(
+            hand_cards=[],
+            pile_cards=[Card(1, Power.Go, "test"), Card(10, Power.Go, "test")]
+        )
+        # State B: hand has 1 card, same pile
+        state_b = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[Card(1, Power.Go, "test"), Card(10, Power.Go, "test")]
+        )
+        score_a = evaluator._evaluate_state(state_a, 2, 0)
+        score_b = evaluator._evaluate_state(state_b, 2, 0)
+        self.assertGreater(score_a, score_b)
+
+    def test_fewer_cards_in_hand_scores_higher(self):
+        """Playing more cards (fewer in hand) should score higher."""
+        evaluator = Player("eval", None, 5)
+        # State A: played 2 cards (hand has 1 left)
+        state_a = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[Card(1, Power.Go, "test"), Card(10, Power.Go, "test")]
+        )
+        # State B: played 1 card (hand has 2 left)
+        state_b = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test"), Card(1000, Power.Go, "test")],
+            pile_cards=[Card(1, Power.Go, "test")]
+        )
+        score_a = evaluator._evaluate_state(state_a, 3, 0)
+        score_b = evaluator._evaluate_state(state_b, 3, 0)
+        self.assertGreater(score_a, score_b)
+
+    def test_poison_adds_expected_value(self):
+        """If additional_action is Poison, expected poison value is added to score."""
+        evaluator = Player("eval", None, 5)
+        state = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[Card(1, Power.Poison, "test")]
+        )
+        state.additional_action = Power.Poison
+        score_with_poison = evaluator._evaluate_state(state, 2, 5000)
+        state.additional_action = None
+        score_without = evaluator._evaluate_state(state, 2, 5000)
+        self.assertEqual(score_with_poison - score_without, 5000)
+
+    def test_power_bonus_for_kill_on_top(self):
+        """Kill on top of play pile adds its bonus to score."""
+        evaluator = Player("eval", None, 5)
+        state_kill = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[Card(1, Power.Kill, "test")]  # Kill is on top (added last = index 0)
+        )
+        state_go = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[Card(1, Power.Go, "test")]
+        )
+        score_kill = evaluator._evaluate_state(state_kill, 2, 0)
+        score_go = evaluator._evaluate_state(state_go, 2, 0)
+        # Kill has bonus 500, Go has no bonus
+        self.assertAlmostEqual(score_kill - score_go, 500, delta=1)
+
+    def test_idic_diversity_bonus(self):
+        """IDIC in pile awards bonus per unique power."""
+        evaluator = Player("eval", None, 5)
+        state = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[
+                Card(1, Power.IDIC, "test"),
+                Card(10, Power.Go, "test"),
+                Card(100, Power.Kill, "test"),
+            ]
+        )
+        score = evaluator._evaluate_state(state, 2, 0)
+        # Without IDIC, same pile but no IDIC
+        state_no_idic = self._make_player_state(
+            hand_cards=[Card(100, Power.Go, "test")],
+            pile_cards=[
+                Card(1, Power.Go, "test"),
+                Card(10, Power.Go, "test"),
+                Card(100, Power.Kill, "test"),
+            ]
+        )
+        score_no_idic = evaluator._evaluate_state(state_no_idic, 2, 0)
+        # IDIC state should score higher due to unique power diversity bonus
+        self.assertGreater(score, score_no_idic)
+
+    def test_bonus_run_progress(self):
+        """Bonus cards of different denominations add progress score."""
+        evaluator = Player("eval", None, 5)
+        # 3 different Bonus denominations in pile
+        state_3 = self._make_player_state(
+            hand_cards=[Card(10000, Power.Go, "test")],
+            pile_cards=[
+                Card(1, Power.Bonus, "test"),
+                Card(10, Power.Bonus, "test"),
+                Card(100, Power.Bonus, "test"),
+            ]
+        )
+        # 1 Bonus denomination
+        state_1 = self._make_player_state(
+            hand_cards=[Card(10000, Power.Go, "test")],
+            pile_cards=[
+                Card(1, Power.Bonus, "test"),
+                Card(10, Power.Go, "test"),
+                Card(100, Power.Go, "test"),
+            ]
+        )
+        score_3 = evaluator._evaluate_state(state_3, 2, 0)
+        score_1 = evaluator._evaluate_state(state_1, 2, 0)
+        # 3 Bonus progress vs 1 → difference of 2 * 2000 = 4000
+        self.assertAlmostEqual(score_3 - score_1, 4000, delta=50)
+
+
 if __name__ == '__main__':
     unittest.main()

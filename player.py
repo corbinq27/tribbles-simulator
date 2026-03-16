@@ -67,43 +67,114 @@ class Player:
                         node.add_child(new_node)
                         self._populate_children_for_node(new_node)
 
+    # Heuristic bonus for playing a card whose power actively helps us or
+    # hurts opponents.  These only matter as tiebreakers when hand-sizes
+    # are equal, so the absolute values are modest.
+    _POWER_BONUS = {
+        Power.Kill: 500,      Power.Discard: 500,
+        Power.Battle: 500,    Power.Sabotage: 500,
+        Power.Bij: 400,       Power.Score: 300,
+        Power.Fold: 300,      Power.Fizzbin: 300,
+        Power.Safety: 300,    Power.Copy: 200,
+        Power.Freeze: 200,    Power.Skip: 200,
+        Power.Roll: 200,      Power.Replay: 100,
+        Power.Reverse: 100,   Power.Flood: 100,
+        Power.Stampede: 100,  Power.Qapla: 100,
+        Power.Rival: 100,     Power.Cache: 50,
+        Power.Exchange: 50,   Power.Wager: 50,
+        Power.Recycle: 50,    Power.Mutate: 50,
+        Power.Party: 50,      Power.Ante: 50,
+    }
+
+    def _evaluate_state(self, state_player, starting_hand_size, expected_value_of_poison):
+        """
+        Score a leaf-node player state.  Higher is better.
+
+        Priority order (by weight):
+          1. Going out  (empties hand → scores entire pile; weighted ×10)
+          2. Fewer cards in hand  (×1000 per card shed)
+          3. Bonus-run progress toward the 1-10-100-1000 Bonus set  (×2000)
+          4. IDIC diversity  (×500 per unique power if IDIC in pile)
+          5. Poison scoring  (expected value, known)
+          6. Power bonus on the top played card  (offensive / defensive value)
+          7. Projected pile value  (×0.1, small optimistic weight)
+        """
+        hand_size = len(state_player.hand.deck)
+        pile_sum = state_player.play_pile.get_denomination_sum()
+        score = 0.0
+
+        # 1. Going out is massively valuable — we actually score the pile
+        if hand_size == 0:
+            going_out_value = (
+                pile_sum
+                + state_player.get_idic_bonus()
+                + state_player.get_bonus_run_score()
+                + state_player.get_dance_bonus()
+            )
+            score += going_out_value * 10
+
+        # 2. Fewer cards in hand (primary heuristic)
+        cards_played = starting_hand_size - hand_size
+        score += cards_played * 1000
+
+        # 3. Bonus-run progress (each of the four required denoms is worth a lot)
+        bonus_denoms = set(
+            c.denomination for c in state_player.play_pile.deck
+            if c.power == Power.Bonus
+        )
+        progress = len({1, 10, 100, 1000} & bonus_denoms)
+        score += progress * 2000
+
+        # 4. IDIC diversity (unique powers in pile × 500)
+        if state_player.has_power_in_play_pile(Power.IDIC):
+            unique_powers = len(set(c.power for c in state_player.play_pile.deck))
+            score += unique_powers * 500
+
+        # 5. Poison scoring
+        if state_player.additional_action == Power.Poison:
+            score += expected_value_of_poison
+
+        # 6. Power bonus for the top card played
+        top_card = state_player.play_pile.get_top_card_of_deck()
+        if top_card is not None:
+            score += self._POWER_BONUS.get(top_card.power, 0)
+
+        # 7. Projected pile value (small weight — matters only as a fine tiebreaker)
+        score += pile_sum * 0.1
+
+        return score
+
     def get_state_minimum_cards_in_hand(self, last_card_played, expected_value_of_poison, is_chain_broken=False):
         """
-        Finds all the deterministic states the player can be in.  Looking only at
-        nodes at the end of the tree (The nodes where the player has no more possible
-        moves), returns the node where the player has the fewest cards in hand, the most
-        expected bonus points, and, If a tie is determined, then then the state with the most
-        cards in the discard pile is chosen.  If a tie remains, then the state with the
-        largest sum of denominations in the play pile is performed. If a tie is still determined, then the node
-        will be determined randomly from the final tie.
+        Builds the tree of all deterministic play sequences (Go / Rescue chains)
+        and selects the leaf state with the highest evaluation score.
+
+        Strongly prefers:
+          - Going out (empty hand → scores entire play pile)
+          - Fewer cards remaining in hand
+          - Higher expected points (poison, IDIC, bonus run, power bonuses)
         """
         tree = self.state_of_all_deterministic_actions(last_card_played, is_chain_broken)
         list_of_all_final_outcomes = tree.get_all_end_nodes()
 
-        best_state = list_of_all_final_outcomes[0]
+        starting_hand_size = len(self.hand.deck)
 
-        for each_state in list_of_all_final_outcomes:
-            each_state_player_object = each_state.value[1]
-            best_state_player_object = best_state.value[1]
-            if len(each_state_player_object.hand.deck) < len(best_state_player_object.hand.deck):
+        best_state = list_of_all_final_outcomes[0]
+        best_score = self._evaluate_state(
+            best_state.value[1], starting_hand_size, expected_value_of_poison
+        )
+
+        for each_state in list_of_all_final_outcomes[1:]:
+            s = self._evaluate_state(
+                each_state.value[1], starting_hand_size, expected_value_of_poison
+            )
+            if s > best_score:
+                best_score = s
                 best_state = each_state
-            elif len(each_state_player_object.hand.deck) == len(best_state_player_object.hand.deck):
-                if each_state_player_object.additional_action == Power.Poison:
-                    poison_value = expected_value_of_poison
-                else:
-                    poison_value = 0
-                if (
-                    each_state_player_object.get_players_score() + poison_value) > best_state_player_object.get_players_score():
+            elif s == best_score:
+                # True tie — break randomly
+                if random.randrange(2) == 0:
                     best_state = each_state
-                elif each_state_player_object.get_players_score() == best_state_player_object.get_players_score():
-                    if len(each_state_player_object.discard_pile.deck) > len(
-                            best_state_player_object.discard_pile.deck):
-                        best_state = each_state
-                    elif each_state_player_object.play_pile.get_denomination_sum() > best_state_player_object.play_pile.get_denomination_sum():
-                        best_state = each_state
-                    elif each_state_player_object.play_pile.get_denomination_sum == best_state_player_object.play_pile.get_denomination_sum():
-                        if random.randrange(2) == 0:
-                            best_state = each_state
 
         if len(tree.children) > 0:
             top_play_card = best_state.value[1].play_pile.get_top_card_and_remove_card()
