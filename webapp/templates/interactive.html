@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Interactive Game - Tribbles Simulator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .game-layout {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 20px;
+    }
+    @media (max-width: 800px) {
+        .game-layout { grid-template-columns: 1fr; }
+    }
+    .hand-area {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-height: 120px;
+        padding: 12px;
+    }
+    .tribble-card {
+        background: #16213e;
+        border: 2px solid #0f3460;
+        border-radius: 8px;
+        padding: 12px;
+        min-width: 100px;
+        text-align: center;
+        cursor: default;
+        transition: all 0.2s;
+    }
+    .tribble-card.playable {
+        border-color: #4ecdc4;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(78, 205, 196, 0.3);
+    }
+    .tribble-card.playable:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 15px rgba(78, 205, 196, 0.5);
+    }
+    .tribble-card .denom {
+        font-size: 24px;
+        font-weight: 700;
+        color: #ffd93d;
+    }
+    .tribble-card .power {
+        font-size: 12px;
+        color: #a0a0b0;
+        margin-top: 4px;
+    }
+    .pile-cards {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .pile-card {
+        background: #0d0d1a;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    .chain-info {
+        background: #0f3460;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    .chain-info .last-card {
+        font-size: 28px;
+        font-weight: 700;
+        color: #4ecdc4;
+    }
+    .chain-info .last-power { color: #a0a0b0; }
+    .chain-info .chain-broken { color: #ff6b6b; font-weight: bold; }
+    .players-sidebar .player-info {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+    .player-info.human { border-color: #4ecdc4; }
+    .player-info .name { font-weight: 600; color: #e94560; }
+    .player-info .stats { font-size: 12px; color: #a0a0b0; margin-top: 4px; }
+    .log-sidebar {
+        background: #0d0d1a;
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        padding: 8px;
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+    .log-sidebar .log-entry { padding: 1px 0; }
+    .log-sidebar .log-entry.play { color: #4ecdc4; }
+    .log-sidebar .log-entry.goes_out { color: #ffd93d; font-weight: bold; }
+    .log-sidebar .log-entry.your_turn { color: #e94560; font-weight: bold; }
+    .log-sidebar .log-entry.poison { color: #c44dff; }
+    .prompt-area {
+        background: #0f3460;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        margin-bottom: 16px;
+    }
+    .prompt-area h3 { color: #ffd93d; }
+    .choice-btn {
+        display: inline-block;
+        margin: 6px;
+        padding: 10px 20px;
+        background: #e94560;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    .choice-btn:hover { background: #c73652; }
+    .game-over-banner {
+        background: linear-gradient(135deg, #0f3460, #e94560);
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .game-over-banner h2 { color: #ffd93d; font-size: 28px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="game-container">
+    <div id="loading" class="card" style="text-align:center;padding:40px">Loading game...</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const gameId = "{{ game_id }}";
+let lastLogLen = 0;
+
+function fetchState() {
+    fetch(`/api/interactive/${gameId}/state`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('game-container').innerHTML = '<div class="card">Game not found.</div>';
+                return;
+            }
+            render(data);
+        })
+        .catch(() => setTimeout(fetchState, 2000));
+}
+
+function playCard(cardIndex) {
+    fetch(`/api/interactive/${gameId}/play`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({card_index: cardIndex}),
+    })
+    .then(r => r.json())
+    .then(data => render(data));
+}
+
+function render(state) {
+    let html = '';
+
+    // Game over banner
+    if (state.game_over) {
+        html += '<div class="game-over-banner"><h2>Game Over!</h2>';
+        state.players.forEach(p => {
+            html += `<div style="color:white;font-size:18px;margin:4px">${p.name}: ${p.score} points</div>`;
+        });
+        html += '</div>';
+    }
+
+    html += '<div class="game-layout"><div class="main-area">';
+
+    // Chain info
+    html += '<div class="chain-info">';
+    html += `<div style="color:#a0a0b0;font-size:12px">Round ${state.round}</div>`;
+    if (state.last_card) {
+        html += `<div class="last-card">${state.last_card.denomination}</div>`;
+        html += `<div class="last-power">${state.last_card.power}</div>`;
+    } else {
+        html += '<div class="last-card">Start</div>';
+        html += '<div class="last-power">Play a 1-denomination card</div>';
+    }
+    if (state.chain_broken) {
+        html += '<div class="chain-broken">Chain Broken!</div>';
+    }
+    html += '</div>';
+
+    // Prompt / choices
+    if (state.waiting_for_input && !state.game_over) {
+        html += '<div class="prompt-area">';
+        html += `<h3>${state.input_prompt}</h3>`;
+        state.input_choices.forEach(c => {
+            html += `<button class="choice-btn" onclick="playCard(${c.index})">${c.label}</button>`;
+        });
+        html += '</div>';
+    }
+
+    // Your hand
+    html += '<div class="card"><h3>Your Hand</h3><div class="hand-area">';
+    const playableIndices = new Set((state.input_choices || []).map(c => c.index));
+    state.hand.forEach((card, idx) => {
+        const isPlayable = state.waiting_for_input && playableIndices.has(idx);
+        html += `<div class="tribble-card ${isPlayable ? 'playable' : ''}" ${isPlayable ? `onclick="playCard(${idx})"` : ''}>`;
+        html += `<div class="denom">${card.denomination}</div>`;
+        html += `<div class="power">${card.power}</div>`;
+        html += '</div>';
+    });
+    if (state.hand.length === 0) {
+        html += '<div style="color:#666;padding:20px">Empty</div>';
+    }
+    html += '</div></div>';
+
+    // Your play pile
+    html += '<div class="card"><h3>Your Play Pile</h3><div class="pile-cards">';
+    state.play_pile.forEach(card => {
+        html += `<span class="pile-card">${card.denomination} ${card.power}</span>`;
+    });
+    if (state.play_pile.length === 0) {
+        html += '<span style="color:#666">Empty</span>';
+    }
+    html += '</div></div>';
+
+    // Log
+    html += '<div class="card"><h3>Game Log</h3><div class="log-sidebar" id="log-area">';
+    (state.log || []).forEach(entry => {
+        html += `<div class="log-entry ${entry.type || ''}">${entry.message}</div>`;
+    });
+    html += '</div></div>';
+
+    html += '</div>'; // end main-area
+
+    // Sidebar - all players
+    html += '<div class="players-sidebar">';
+    state.players.forEach(p => {
+        html += `<div class="player-info ${p.is_human ? 'human' : ''}">`;
+        html += `<div class="name">${p.name}${p.is_human ? ' (You)' : ''}</div>`;
+        html += `<div class="stats">Hand: ${p.hand_count} | Pile: ${p.pile_count} | Deck: ${p.deck_count} | Discard: ${p.discard_count}</div>`;
+        html += `<div class="stats">Score: <strong>${p.score}</strong></div>`;
+        html += '</div>';
+    });
+    html += '</div>';
+
+    html += '</div>'; // end game-layout
+
+    document.getElementById('game-container').innerHTML = html;
+
+    // Scroll log
+    const logArea = document.getElementById('log-area');
+    if (logArea) logArea.scrollTop = logArea.scrollHeight;
+}
+
+fetchState();
+</script>
+{% endblock %}

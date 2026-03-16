@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Game Log - Tribbles Simulator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .log-controls {
+        display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    .filter-btn {
+        padding: 4px 10px;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        background: transparent;
+        color: #a0a0b0;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    .filter-btn.active { background: #0f3460; color: #e94560; }
+    .log-table { width: 100%; font-family: monospace; font-size: 13px; }
+    .log-table td { padding: 3px 8px; vertical-align: top; }
+    .log-table .id-col { color: #555; width: 50px; }
+    .log-table .type-col { width: 100px; }
+    .type-play { color: #4ecdc4; }
+    .type-draw { color: #a0a0b0; }
+    .type-goes_out { color: #ffd93d; font-weight: bold; }
+    .type-round_start { color: #e94560; }
+    .type-game_start { color: #e94560; font-weight: bold; }
+    .type-round_end { color: #6bcb77; }
+    .type-final_score { color: #ffd93d; }
+    .type-poison { color: #c44dff; }
+    .type-chain_broken { color: #ff6b6b; }
+    .type-error { color: #ff4444; }
+    .type-status { color: #555; }
+    .type-skip { color: #ff9f43; }
+    .type-deal { color: #a0a0b0; }
+    .search-box {
+        padding: 6px 12px;
+        border: 1px solid #0f3460;
+        border-radius: 4px;
+        background: #1a1a2e;
+        color: #e0e0e0;
+        width: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Detailed Game Log</h1>
+
+{% if scores %}
+<div class="card">
+    <h2>Final Scores</h2>
+    {% for game_scores in scores %}
+    <h3>Game {{ loop.index }}</h3>
+    <table>
+        <tr><th>Player</th><th>Total</th><th>Round Scores</th></tr>
+        {% for name, data in game_scores.items() %}
+        <tr>
+            <td>{{ name }}</td>
+            <td style="font-weight:bold">{{ data.total }}</td>
+            <td>
+                {% for rk, rv in data.rounds.items() %}
+                    {{ rk }}: {{ rv }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="log-controls">
+        <input type="text" class="search-box" id="search" placeholder="Search log..."
+               oninput="filterLog()">
+        <button class="filter-btn active" data-type="all" onclick="toggleFilter(this)">All</button>
+        <button class="filter-btn" data-type="play" onclick="toggleFilter(this)">Plays</button>
+        <button class="filter-btn" data-type="goes_out" onclick="toggleFilter(this)">Goes Out</button>
+        <button class="filter-btn" data-type="round_start" onclick="toggleFilter(this)">Rounds</button>
+        <button class="filter-btn" data-type="poison" onclick="toggleFilter(this)">Poison</button>
+        <button class="filter-btn" data-type="final_score" onclick="toggleFilter(this)">Scores</button>
+        <span style="color:#666;font-size:12px">{{ entries|length }} entries</span>
+    </div>
+
+    <div id="log-content" style="max-height:700px;overflow-y:auto">
+        <table class="log-table">
+            <tbody id="log-body">
+                {% for entry in entries %}
+                <tr class="log-row" data-type="{{ entry.type }}">
+                    <td class="id-col">{{ entry.id }}</td>
+                    <td class="type-col type-{{ entry.type }}">{{ entry.type }}</td>
+                    <td class="type-{{ entry.type }}">{{ entry.message }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div style="margin-top:16px">
+    <a href="/" class="btn btn-secondary">Back to Setup</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let activeFilter = 'all';
+
+function toggleFilter(btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.type;
+    filterLog();
+}
+
+function filterLog() {
+    const search = document.getElementById('search').value.toLowerCase();
+    document.querySelectorAll('.log-row').forEach(row => {
+        const type = row.dataset.type;
+        const text = row.textContent.toLowerCase();
+        const typeMatch = activeFilter === 'all' || type === activeFilter;
+        const searchMatch = !search || text.includes(search);
+        row.style.display = (typeMatch && searchMatch) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

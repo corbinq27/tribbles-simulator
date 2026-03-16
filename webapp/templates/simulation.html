@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Simulation - Tribbles Simulator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sim-controls {
+        display: flex; gap: 16px; align-items: center; margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    .log-area {
+        background: #0d0d1a;
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        padding: 12px;
+        height: 500px;
+        overflow-y: auto;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+    .log-entry { padding: 2px 0; }
+    .log-entry.play { color: #4ecdc4; }
+    .log-entry.draw { color: #a0a0b0; }
+    .log-entry.goes_out { color: #ffd93d; font-weight: bold; }
+    .log-entry.round_start { color: #e94560; font-weight: bold; }
+    .log-entry.game_start { color: #e94560; font-weight: bold; font-size: 15px; }
+    .log-entry.round_end { color: #6bcb77; }
+    .log-entry.final_score { color: #ffd93d; }
+    .log-entry.poison { color: #c44dff; }
+    .log-entry.chain_broken { color: #ff6b6b; }
+    .log-entry.error { color: #ff4444; }
+    .log-entry.status { color: #666; }
+    .log-entry.skip { color: #ff9f43; }
+    .scores-panel { margin-top: 20px; }
+    #status-badge {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .status-running { background: #0f3460; color: #4ecdc4; }
+    .status-done { background: #1a4a2e; color: #6bcb77; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Simulation Viewer</h1>
+
+<div class="sim-controls">
+    <div>
+        <label>Speed: <span id="speed-display">{{ speed }}</span> plays/sec</label>
+        <input type="range" id="speed-slider" min="1" max="10000" value="{{ speed }}"
+               oninput="speed=parseInt(this.value);document.getElementById('speed-display').textContent=speed">
+    </div>
+    <button class="btn btn-secondary" onclick="togglePause()">
+        <span id="pause-btn-text">Pause</span>
+    </button>
+    <span id="status-badge" class="status-running">Running</span>
+    <a href="/simulation/{{ game_id }}/log" class="btn btn-secondary" id="log-link" style="display:none">
+        View Full Log
+    </a>
+</div>
+
+<div class="card">
+    <div id="log-area" class="log-area"></div>
+</div>
+
+<div id="scores-panel" class="scores-panel" style="display:none">
+    <div class="card">
+        <h2>Final Scores</h2>
+        <div id="scores-content"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const gameId = "{{ game_id }}";
+let speed = {{ speed }};
+let paused = false;
+let lastEntryId = 0;
+let pendingEntries = [];
+let displayTimer = null;
+
+function togglePause() {
+    paused = !paused;
+    document.getElementById('pause-btn-text').textContent = paused ? 'Resume' : 'Pause';
+    if (!paused) displayNext();
+}
+
+function displayNext() {
+    if (paused) return;
+    const area = document.getElementById('log-area');
+    const batchSize = Math.max(1, Math.ceil(speed / 20));
+
+    for (let i = 0; i < batchSize && pendingEntries.length > 0; i++) {
+        const entry = pendingEntries.shift();
+        const div = document.createElement('div');
+        div.className = 'log-entry ' + (entry.type || '');
+        div.textContent = entry.message;
+        area.appendChild(div);
+    }
+    area.scrollTop = area.scrollHeight;
+
+    if (pendingEntries.length > 0) {
+        const delay = Math.max(1, 1000 / speed);
+        displayTimer = setTimeout(displayNext, delay);
+    }
+}
+
+function fetchLog() {
+    fetch(`/api/simulation/${gameId}?after=${lastEntryId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.log && data.log.length > 0) {
+                data.log.forEach(e => {
+                    pendingEntries.push(e);
+                    if (e.id > lastEntryId) lastEntryId = e.id;
+                });
+                if (!paused && !displayTimer) displayNext();
+            }
+
+            if (data.status === 'done') {
+                document.getElementById('status-badge').className = 'status-done';
+                document.getElementById('status-badge').textContent = 'Done';
+                document.getElementById('log-link').style.display = 'inline-block';
+                if (data.scores && data.scores.length > 0) {
+                    showScores(data.scores);
+                }
+            } else {
+                setTimeout(fetchLog, 500);
+            }
+
+            if (data.status === 'error') {
+                document.getElementById('status-badge').className = '';
+                document.getElementById('status-badge').textContent = 'Error';
+                document.getElementById('status-badge').style.background = '#ff4444';
+            }
+        })
+        .catch(() => setTimeout(fetchLog, 2000));
+}
+
+function showScores(scores) {
+    const panel = document.getElementById('scores-panel');
+    panel.style.display = 'block';
+    let html = '';
+    scores.forEach((gameScores, idx) => {
+        html += `<h3>Game ${idx + 1}</h3><table><tr><th>Player</th><th>Total</th><th>Rounds</th></tr>`;
+        for (const [name, data] of Object.entries(gameScores)) {
+            const rounds = Object.entries(data.rounds || {}).map(([k,v]) => `${k}: ${v}`).join(', ');
+            html += `<tr><td>${name}</td><td style="font-weight:bold">${data.total}</td><td>${rounds}</td></tr>`;
+        }
+        html += '</table>';
+    });
+    document.getElementById('scores-content').innerHTML = html;
+}
+
+fetchLog();
+</script>
+{% endblock %}

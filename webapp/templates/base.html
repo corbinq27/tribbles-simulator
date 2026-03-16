@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tribbles Simulator{% endblock %}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #16213e;
+            padding: 12px 24px;
+            border-bottom: 2px solid #0f3460;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        .navbar a {
+            color: #e94560;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        .navbar a:hover { color: #ff6b81; }
+        .navbar .title {
+            font-size: 22px;
+            color: #e94560;
+            font-weight: 700;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        h1, h2, h3 { color: #e94560; margin-bottom: 16px; }
+        .card {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .btn:hover { background: #c73652; }
+        .btn-secondary { background: #0f3460; }
+        .btn-secondary:hover { background: #1a4a8a; }
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        input:focus, select:focus { outline: 2px solid #e94560; }
+        label { display: block; margin-bottom: 4px; font-weight: 500; color: #a0a0b0; }
+        .form-group { margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #0f3460; }
+        th { color: #e94560; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="title">Tribbles Simulator</a>
+        <a href="/">Setup</a>
+    </nav>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

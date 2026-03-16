@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Tribbles Simulator - Setup{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mode-tabs { display: flex; gap: 12px; margin-bottom: 24px; }
+    .mode-tab {
+        padding: 12px 24px;
+        background: #16213e;
+        border: 2px solid #0f3460;
+        border-radius: 8px 8px 0 0;
+        cursor: pointer;
+        color: #a0a0b0;
+        font-weight: 600;
+    }
+    .mode-tab.active { background: #0f3460; color: #e94560; border-bottom-color: #0f3460; }
+    .mode-panel { display: none; }
+    .mode-panel.active { display: block; }
+    .player-config { display: flex; gap: 12px; align-items: end; margin-bottom: 8px; }
+    .player-config input, .player-config select { flex: 1; }
+    .speed-slider { width: 200px; }
+    .upload-section { margin-top: 24px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Tribbles Card Game Simulator</h1>
+
+<div class="mode-tabs">
+    <div class="mode-tab active" onclick="switchMode('simulate')">Simulation Mode</div>
+    <div class="mode-tab" onclick="switchMode('interactive')">Interactive Mode</div>
+</div>
+
+<!-- SIMULATION MODE -->
+<div id="panel-simulate" class="mode-panel active">
+    <div class="card">
+        <h2>Run Simulation</h2>
+        <p style="margin-bottom:16px;color:#a0a0b0">
+            Configure players, decks, and games. Watch the simulation unfold at your chosen speed.
+        </p>
+        <form method="POST" action="/simulate" id="sim-form">
+            <div style="display:flex;gap:24px;flex-wrap:wrap">
+                <div class="form-group">
+                    <label>Number of Players</label>
+                    <select name="num_players" id="sim-num-players" onchange="updateSimPlayers()">
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Number of Games</label>
+                    <input type="number" name="num_games" value="1" min="1" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Rounds per Game</label>
+                    <input type="number" name="num_rounds" value="5" min="1" max="20">
+                </div>
+                <div class="form-group">
+                    <label>Playback Speed (plays/sec)</label>
+                    <input type="range" name="speed" min="1" max="10000" value="10" class="speed-slider"
+                           oninput="document.getElementById('speed-val').textContent=this.value" id="speed-input">
+                    <span id="speed-val">10</span> plays/sec
+                </div>
+            </div>
+            <div id="sim-players"></div>
+            <button type="submit" class="btn" style="margin-top:16px">Start Simulation</button>
+        </form>
+    </div>
+</div>
+
+<!-- INTERACTIVE MODE -->
+<div id="panel-interactive" class="mode-panel">
+    <div class="card">
+        <h2>Play Interactive Game</h2>
+        <p style="margin-bottom:16px;color:#a0a0b0">
+            Play against computer opponents. You make all the card choices.
+        </p>
+        <form method="POST" action="/interactive" id="int-form">
+            <div style="display:flex;gap:24px;flex-wrap:wrap">
+                <div class="form-group">
+                    <label>Total Players (including you)</label>
+                    <select name="num_players" id="int-num-players" onchange="updateIntPlayers()">
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Rounds per Game</label>
+                    <input type="number" name="num_rounds" value="5" min="1" max="20">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" name="human_name" value="You">
+            </div>
+            <div id="int-players"></div>
+            <button type="submit" class="btn" style="margin-top:16px">Start Game</button>
+        </form>
+    </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="card upload-section">
+    <h3>Upload Deck</h3>
+    <form method="POST" action="/upload_deck" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end">
+        <div class="form-group" style="margin-bottom:0">
+            <label>Deck File (.json)</label>
+            <input type="file" name="deck_file" accept=".json">
+        </div>
+        <button type="submit" class="btn btn-secondary">Upload</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const decks = {{ decks | tojson }};
+
+function makeDeckSelect(name, id) {
+    let html = `<select name="${name}" id="${id}">`;
+    decks.forEach(d => {
+        html += `<option value="${d}">${d}</option>`;
+    });
+    html += '</select>';
+    return html;
+}
+
+function updateSimPlayers() {
+    const n = parseInt(document.getElementById('sim-num-players').value);
+    let html = '<h3 style="margin-top:16px">Players</h3>';
+    for (let i = 0; i < n; i++) {
+        html += `<div class="player-config">
+            <div class="form-group"><label>Name</label>
+                <input type="text" name="name_${i}" value="Player ${i+1}">
+            </div>
+            <div class="form-group"><label>Deck</label>
+                ${makeDeckSelect('deck_' + i, 'sim-deck-' + i)}
+            </div>
+        </div>`;
+    }
+    document.getElementById('sim-players').innerHTML = html;
+}
+
+function updateIntPlayers() {
+    const n = parseInt(document.getElementById('int-num-players').value);
+    let html = '<h3 style="margin-top:16px">Players</h3>';
+    // Player 0 is human
+    html += `<div class="player-config">
+        <div class="form-group"><label>Your Deck</label>
+            ${makeDeckSelect('deck_0', 'int-deck-0')}
+        </div>
+    </div>`;
+    for (let i = 1; i < n; i++) {
+        html += `<div class="player-config">
+            <div class="form-group"><label>CPU ${i} Name</label>
+                <input type="text" name="name_${i}" value="CPU ${i}">
+            </div>
+            <div class="form-group"><label>Deck</label>
+                ${makeDeckSelect('deck_' + i, 'int-deck-' + i)}
+            </div>
+        </div>`;
+    }
+    document.getElementById('int-players').innerHTML = html;
+}
+
+function switchMode(mode) {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + mode).classList.add('active');
+}
+
+// Init
+updateSimPlayers();
+updateIntPlayers();
+</script>
+{% endblock %}
