@@ -1199,6 +1199,7 @@ class InteractiveGame:
                 "deck_count": len(p.deck.deck),
                 "discard_count": len(p.discard_pile.deck),
                 "score": p.get_players_score(),
+                "round_scores": {rk: rv for rk, rv in p.score.items()},
                 "is_human": k == self.human_index,
                 "pile_top": {"denomination": top.denomination, "power": top.power.name} if top else None,
             })
@@ -1216,6 +1217,7 @@ class InteractiveGame:
             "last_card": last_card,
             "players": all_players,
             "round": self.round_num,
+            "num_rounds": self.num_rounds,
             "chain_broken": self.is_chain_broken,
             "game_over": self.game_over,
             "waiting_for_input": self.waiting_for_input,

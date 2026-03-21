@@ -35,15 +35,20 @@
     background: var(--s1);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 22px 28px;
+    padding: 22px 28px 18px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
+    flex-direction: column;
+    gap: 0;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     position: relative;
     overflow: hidden;
+}
+.chain-hero-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
 }
 .chain-hero::before {
     content: '';
@@ -519,6 +524,174 @@
 .pc-pile-chip .chip-d { color: var(--gold); }
 
 /* ══════════════════════════════════════════════════════════════════
+   Chain progress tracker
+══════════════════════════════════════════════════════════════════ */
+.chain-tracker {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+.chain-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.chain-node-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-hi);
+    background: transparent;
+    transition: all .3s;
+    box-sizing: border-box;
+}
+.chain-node.past .chain-node-dot {
+    background: rgba(45,212,191,.35);
+    border-color: rgba(45,212,191,.55);
+}
+.chain-node.current .chain-node-dot {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(45,212,191,.65);
+    width: 11px;
+    height: 11px;
+}
+.chain-node-label {
+    font-size: 9px;
+    color: var(--t3);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1;
+}
+.chain-node.past    .chain-node-label { color: rgba(45,212,191,.6); }
+.chain-node.current .chain-node-label { color: var(--accent); font-size: 10px; }
+.chain-connector {
+    height: 1.5px;
+    flex: 1;
+    background: var(--border);
+    margin-bottom: 14px;
+}
+.chain-connector.past { background: rgba(45,212,191,.4); }
+
+/* ══════════════════════════════════════════════════════════════════
+   Round summary modal
+══════════════════════════════════════════════════════════════════ */
+.summary-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: overlayIn .25s ease-out;
+}
+@keyframes overlayIn { from { opacity:0; } to { opacity:1; } }
+.summary-modal {
+    background: linear-gradient(160deg, rgba(14,10,40,.98), rgba(7,7,13,.99));
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-lg);
+    padding: 36px 40px;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 24px 80px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.05);
+    animation: modalIn .32s var(--ease-out);
+    text-align: center;
+}
+@keyframes modalIn {
+    from { transform: scale(.92) translateY(14px); opacity:0; }
+    to   { transform: scale(1)   translateY(0);    opacity:1; }
+}
+.summary-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+}
+.summary-heading {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--t1);
+    letter-spacing: -1px;
+    margin: 0 0 6px;
+}
+.summary-winner {
+    font-size: 14px;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 28px;
+    font-size: 13px;
+}
+.summary-table th {
+    color: var(--t3);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: .8px;
+    padding: 0 8px 8px;
+    text-align: right;
+}
+.summary-table th:first-child { text-align: left; }
+.summary-table td {
+    padding: 8px;
+    text-align: right;
+    color: var(--t2);
+    border-top: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+}
+.summary-table td:first-child { text-align: left; font-weight: 600; color: var(--t1); }
+.summary-table tr.winner-row td { color: var(--gold); font-weight: 700; }
+.summary-continue-btn {
+    padding: 12px 32px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-pill);
+    color: #07070d;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: -.1px;
+    transition: all .18s var(--ease-spring);
+}
+.summary-continue-btn:hover { background: #5eead4; transform: scale(1.04); }
+.summary-continue-btn:active { transform: scale(.96); }
+
+/* ══════════════════════════════════════════════════════════════════
+   Replay button
+══════════════════════════════════════════════════════════════════ */
+.replay-btn {
+    align-self: flex-start;
+    padding: 6px 14px;
+    background: var(--s2);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-pill);
+    color: var(--t2);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: .2px;
+    transition: all .18s var(--ease-spring);
+}
+.replay-btn:hover { background: var(--s3); border-color: var(--accent); color: var(--accent); }
+
+/* ══════════════════════════════════════════════════════════════════
    Game-over banner
 ══════════════════════════════════════════════════════════════════ */
 .game-over-banner {
@@ -564,6 +737,8 @@
 <script>
 const gameId = "{{ game_id }}";
 let animating = false;
+let lastAiMoments = [];
+let lastAiState   = null;
 
 /* ── Fetch ─────────────────────────────────────────────────────── */
 function fetchState() {
@@ -593,9 +768,22 @@ function playCard(cardIndex) {
         if (data.error) { render(data); return; }
         const pauseModes = new Set(['power_choice','roll_mulligan','bah_choice']);
         if (pauseModes.has(data.input_mode)) { render(data); return; }
-        const moments = buildMoments(data.events_since_human_play || []);
-        if (!moments.length) { render(data); return; }
-        animateMoments(moments, data);
+        const events  = data.events_since_human_play || [];
+        const moments = buildMoments(events);
+        const hasRoundEnd = events.some(e => e.type === 'round_end');
+
+        if (moments.length) {
+            lastAiMoments = moments;
+            lastAiState   = data;
+        }
+
+        const afterAnim = () => {
+            render(data);
+            if (hasRoundEnd) showRoundSummary(data, events);
+        };
+
+        if (!moments.length) { afterAnim(); return; }
+        animateMoments(moments, data, afterAnim);
     });
 }
 
@@ -696,20 +884,105 @@ function renderDots(active, total) {
 
 function hideViewer() { document.getElementById('play-viewer').style.display = 'none'; }
 
-/* ── Animate all moments, then render ─────────────────────────── */
-function animateMoments(moments, state) {
-    if (!moments.length) { render(state); return; }
+/* ── Animate all moments, then call onDone (defaults to render) ── */
+function animateMoments(moments, state, onDone) {
+    const done = onDone || (() => render(state));
+    if (!moments.length) { done(); return; }
     animating = true;
     let i = 0;
     let lastCard = state.chain_before_ai || null;
     function next() {
-        if (i >= moments.length) { hideViewer(); animating = false; render(state); return; }
+        if (i >= moments.length) { hideViewer(); animating = false; done(); return; }
         const m = moments[i];
         lastCard = showMoment(m, lastCard, i, moments.length);
         i++;
         setTimeout(next, m.kind === 'play' ? 3000 : 1600);
     }
     next();
+}
+
+/* ── Replay the last AI animation ─────────────────────────────── */
+function replayLastAiTurn() {
+    if (animating || !lastAiMoments.length) return;
+    animateMoments(lastAiMoments, lastAiState, () => render(lastAiState));
+}
+
+/* ── Chain progress tracker HTML ──────────────────────────────── */
+function renderChainTracker(lastCard) {
+    const DENOMS = [1, 10, 100, 1000, 10000, 100000];
+    const LABELS = ['1', '10', '100', '1K', '10K', '100K'];
+    const curDenom = lastCard ? Number(lastCard.denomination) : null;
+    const curIdx   = curDenom !== null ? DENOMS.indexOf(curDenom) : -1;
+
+    let html = '<div class="chain-tracker">';
+    DENOMS.forEach((d, i) => {
+        const cls = i === curIdx ? 'current' : (curIdx >= 0 && i < curIdx ? 'past' : 'future');
+        html += `<div class="chain-node ${cls}">
+            <div class="chain-node-dot"></div>
+            <div class="chain-node-label">${LABELS[i]}</div>
+        </div>`;
+        // connector after each node
+        const connPast = curIdx > i;
+        html += `<div class="chain-connector${connPast ? ' past' : ''}"></div>`;
+    });
+    // Wrap-around indicator
+    html += `<div class="chain-node future">
+        <div class="chain-node-dot" style="border-style:dashed;opacity:.5"></div>
+        <div class="chain-node-label" style="opacity:.5">↺</div>
+    </div>`;
+    html += '</div>';
+    return html;
+}
+
+/* ── Round / game summary modal ───────────────────────────────── */
+function showRoundSummary(state, events) {
+    const roundEndEv = events.find(e => e.type === 'round_end');
+    if (!roundEndEv) return;
+
+    const m = roundEndEv.message.match(/Round (\d+) winner: (.+?) \(score: ([\d,]+)\)/);
+    if (!m) return;
+    const completedRound = parseInt(m[1]);
+    const winnerName     = m[2];
+    const roundKey       = 'round' + completedRound;
+    const isLastRound    = state.game_over;
+
+    const sortedPlayers = [...(state.players || [])].sort((a, b) => b.score - a.score);
+    const rows = sortedPlayers.map(p => {
+        const rs  = (p.round_scores && p.round_scores[roundKey]) || 0;
+        const win = p.name === winnerName;
+        return `<tr class="${win ? 'winner-row' : ''}">
+            <td>${win ? '★ ' : ''}${p.name}${p.is_human ? ' (You)' : ''}</td>
+            <td>${rs.toLocaleString()}</td>
+            <td>${p.score.toLocaleString()}</td>
+        </tr>`;
+    }).join('');
+
+    const contLabel = isLastRound
+        ? 'View Final Results'
+        : `Continue to Round ${completedRound + 1}`;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'summary-overlay';
+    overlay.id = 'round-summary-overlay';
+    overlay.innerHTML = `
+        <div class="summary-modal">
+            <div class="summary-eyebrow">${isLastRound ? 'Final Round' : 'Round ' + completedRound}</div>
+            <div class="summary-heading">${isLastRound ? 'Game Complete' : 'Round Complete'}</div>
+            <div class="summary-winner">${winnerName} goes out!</div>
+            <table class="summary-table">
+                <thead><tr>
+                    <th>Player</th>
+                    <th>Round ${completedRound}</th>
+                    <th>Total</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <button class="summary-continue-btn"
+                    onclick="document.getElementById('round-summary-overlay').remove()">
+                ${contLabel}
+            </button>
+        </div>`;
+    document.body.appendChild(overlay);
 }
 
 /* ── Full render ───────────────────────────────────────────────── */
@@ -739,13 +1012,14 @@ function render(state) {
 
     /* Chain hero */
     html += '<div class="chain-hero">';
+    html += '<div class="chain-hero-row">';
     html += '<div class="chain-side">';
     if (state.chain_broken) {
         html += '<span class="chain-broken-pill">⚡ Chain Broken</span>';
     }
     html += '</div>';
     html += '<div class="chain-center">';
-    html += `<div class="chain-round-pill">Round ${state.round}</div>`;
+    html += `<div class="chain-round-pill">Round ${state.round}${state.num_rounds ? ' / ' + state.num_rounds : ''}</div>`;
     if (state.last_card) {
         html += `<div class="chain-denom">${state.last_card.denomination}</div>`;
         html += `<div class="chain-power">${state.last_card.power}</div>`;
@@ -755,7 +1029,9 @@ function render(state) {
     }
     html += '</div>';
     html += '<div class="chain-side right"></div>';
-    html += '</div>';
+    html += '</div>'; /* end chain-hero-row */
+    html += renderChainTracker(state.last_card);
+    html += '</div>'; /* end chain-hero */
 
     /* Prompt */
     if (state.waiting_for_input && !state.game_over) {
@@ -813,6 +1089,11 @@ function render(state) {
 
     /* ─── Right column ────────────────────────────────────────── */
     html += '<div class="right-col">';
+
+    /* Replay button — only visible when there are stored AI moments */
+    if (lastAiMoments.length && !animating) {
+        html += `<button class="replay-btn" onclick="replayLastAiTurn()">↻ Replay Last AI Turn</button>`;
+    }
 
     /* Play viewer (kept in DOM — shown by animation, hidden when idle) */
     html += `
