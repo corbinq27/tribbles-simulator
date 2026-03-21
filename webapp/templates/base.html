@@ -5,82 +5,245 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tribbles Simulator{% endblock %}</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #1a1a2e;
-            color: #e0e0e0;
-            min-height: 100vh;
+        /* ── Design tokens ─────────────────────────────────────────────── */
+        :root {
+            --bg:           #07070d;
+            --bg-grad:      radial-gradient(ellipse at 50% -10%, rgba(22,12,68,.9) 0%, #07070d 62%);
+            --s1:           rgba(255,255,255,.045);
+            --s2:           rgba(255,255,255,.07);
+            --s3:           rgba(255,255,255,.11);
+            --border:       rgba(255,255,255,.09);
+            --border-hi:    rgba(255,255,255,.20);
+            --t1:           rgba(255,255,255,.92);
+            --t2:           rgba(255,255,255,.52);
+            --t3:           rgba(255,255,255,.30);
+            --accent:       #2dd4bf;
+            --accent-dim:   rgba(45,212,191,.18);
+            --accent-glow:  rgba(45,212,191,.28);
+            --gold:         #fbbf24;
+            --gold-dim:     rgba(251,191,36,.12);
+            --rose:         #f43f5e;
+            --rose-dim:     rgba(244,63,94,.15);
+            --amber:        #fb923c;
+            --violet:       #a78bfa;
+            --red:          #ff453a;
+            --green:        #34d399;
+            --radius-sm:    8px;
+            --radius:       14px;
+            --radius-lg:    20px;
+            --radius-pill:  999px;
+            --ease-spring:  cubic-bezier(.34,1.56,.64,1);
+            --ease-out:     cubic-bezier(.16,1,.3,1);
         }
+
+        /* ── Reset ─────────────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* ── Base ──────────────────────────────────────────────────────── */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+                         "Helvetica Neue", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: var(--bg);
+            background-image: var(--bg-grad);
+            color: var(--t1);
+            min-height: 100vh;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* ── Navbar ────────────────────────────────────────────────────── */
         .navbar {
-            background: #16213e;
-            padding: 12px 24px;
-            border-bottom: 2px solid #0f3460;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            height: 52px;
             display: flex;
             align-items: center;
-            gap: 24px;
+            padding: 0 28px;
+            gap: 28px;
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            background: rgba(7,7,13,.72);
+            border-bottom: 1px solid var(--border);
         }
-        .navbar a {
-            color: #e94560;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 18px;
-        }
-        .navbar a:hover { color: #ff6b81; }
         .navbar .title {
-            font-size: 22px;
-            color: #e94560;
+            font-size: 17px;
             font-weight: 700;
+            color: var(--t1);
+            text-decoration: none;
+            letter-spacing: -.2px;
         }
+        .navbar .title span { color: var(--accent); }
+        .navbar a.nav-link {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--t2);
+            text-decoration: none;
+            transition: color .15s;
+        }
+        .navbar a.nav-link:hover { color: var(--t1); }
+
+        /* ── Container ─────────────────────────────────────────────────── */
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 28px 24px;
         }
-        h1, h2, h3 { color: #e94560; margin-bottom: 16px; }
-        .card {
-            background: #16213e;
-            border: 1px solid #0f3460;
-            border-radius: 8px;
-            padding: 20px;
+
+        /* ── Typography ────────────────────────────────────────────────── */
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--t1);
+            letter-spacing: -.5px;
             margin-bottom: 20px;
         }
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--t1);
+            letter-spacing: -.3px;
+            margin-bottom: 14px;
+        }
+        h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--t1);
+            margin-bottom: 12px;
+        }
+        p { color: var(--t2); }
+
+        /* ── Card (glass surface) ──────────────────────────────────────── */
+        .card {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* ── Buttons ───────────────────────────────────────────────────── */
         .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            background: #e94560;
-            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 20px;
+            background: var(--accent);
+            color: #07070d;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-pill);
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
             text-decoration: none;
+            transition: opacity .15s, transform .15s var(--ease-spring);
+            letter-spacing: .1px;
         }
-        .btn:hover { background: #c73652; }
-        .btn-secondary { background: #0f3460; }
-        .btn-secondary:hover { background: #1a4a8a; }
+        .btn:hover { opacity: .88; transform: scale(1.02); }
+        .btn:active { transform: scale(.97); }
+        .btn-secondary {
+            background: var(--s3);
+            color: var(--t1);
+            border: 1px solid var(--border-hi);
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,.15); }
+
+        /* ── Form elements ─────────────────────────────────────────────── */
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--t2);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
         input, select {
-            padding: 8px 12px;
-            border: 1px solid #0f3460;
-            border-radius: 4px;
-            background: #1a1a2e;
-            color: #e0e0e0;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--s2);
+            color: var(--t1);
             font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s;
+            appearance: none;
+            -webkit-appearance: none;
         }
-        input:focus, select:focus { outline: 2px solid #e94560; }
-        label { display: block; margin-bottom: 4px; font-weight: 500; color: #a0a0b0; }
+        input:focus, select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(45,212,191,.18);
+        }
+        input[type="range"] {
+            padding: 0;
+            accent-color: var(--accent);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="file"] {
+            font-size: 13px;
+            color: var(--t2);
+        }
         .form-group { margin-bottom: 16px; }
+
+        /* ── Tables ────────────────────────────────────────────────────── */
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #0f3460; }
-        th { color: #e94560; }
+        th {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--t2);
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--t2);
+        }
+        tr:last-child td { border-bottom: none; }
+
+        /* ── Pill badge ────────────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+        }
+        .badge-accent  { background: var(--accent-dim); color: var(--accent); }
+        .badge-gold    { background: var(--gold-dim);   color: var(--gold); }
+        .badge-rose    { background: var(--rose-dim);   color: var(--rose); }
+
+        /* ── Divider ───────────────────────────────────────────────────── */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+
+        /* ── Scrollbar (WebKit) ────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <nav class="navbar">
-        <a href="/" class="title">Tribbles Simulator</a>
-        <a href="/">Setup</a>
+        <a href="/" class="title">Tribbles <span>Simulator</span></a>
+        <a href="/" class="nav-link">Home</a>
     </nav>
     <div class="container">
         {% block content %}{% endblock %}

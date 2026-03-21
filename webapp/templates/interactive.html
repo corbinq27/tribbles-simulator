@@ -1,274 +1,578 @@
 {% extends "base.html" %}
-{% block title %}Interactive Game - Tribbles Simulator{% endblock %}
+{% block title %}Interactive Game — Tribbles Simulator{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* ── Layout ─────────────────────────────────────────────────────── */
-    .game-layout {
-        display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 20px;
-        align-items: start;
-    }
-    @media (max-width: 800px) { .game-layout { grid-template-columns: 1fr; } }
+/* ══════════════════════════════════════════════════════════════════
+   Layout
+══════════════════════════════════════════════════════════════════ */
+.game-layout {
+    display: grid;
+    grid-template-columns: 1fr 316px;
+    gap: 18px;
+    align-items: start;
+}
+@media (max-width: 860px) { .game-layout { grid-template-columns: 1fr; } }
+.main-col { display: flex; flex-direction: column; gap: 14px; }
+.right-col { display: flex; flex-direction: column; gap: 12px; }
 
-    /* ── Card tiles ─────────────────────────────────────────────────── */
-    .tribble-card {
-        background: #16213e;
-        border: 2px solid #0f3460;
-        border-radius: 8px;
-        padding: 12px;
-        min-width: 90px;
-        text-align: center;
-        cursor: default;
-        transition: all 0.2s;
-    }
-    .tribble-card.playable {
-        border-color: #4ecdc4;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(78,205,196,0.3);
-    }
-    .tribble-card.playable:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 15px rgba(78,205,196,0.5);
-    }
-    .tribble-card .denom { font-size: 22px; font-weight: 700; color: #ffd93d; }
-    .tribble-card .power { font-size: 11px; color: #a0a0b0; margin-top: 4px; }
-    .hand-area { display: flex; flex-wrap: wrap; gap: 10px; min-height: 110px; padding: 12px; }
+/* ══════════════════════════════════════════════════════════════════
+   Section header shared
+══════════════════════════════════════════════════════════════════ */
+.sec-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
 
-    /* ── Pile cards ─────────────────────────────────────────────────── */
-    .pile-cards { display: flex; flex-wrap: wrap; gap: 6px; }
-    .pile-card {
-        background: #0d0d1a;
-        border: 1px solid #0f3460;
-        border-radius: 4px;
-        padding: 4px 8px;
-        font-size: 11px;
-    }
+/* ══════════════════════════════════════════════════════════════════
+   Chain hero bar
+══════════════════════════════════════════════════════════════════ */
+.chain-hero {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    position: relative;
+    overflow: hidden;
+}
+.chain-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(45,212,191,.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+.chain-center { text-align: center; flex: 1; }
+.chain-round-pill {
+    display: inline-block;
+    padding: 3px 12px;
+    background: var(--s3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t2);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 10px;
+}
+.chain-denom {
+    font-size: 52px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -3px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.chain-start {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--t2);
+}
+.chain-power {
+    font-size: 13px;
+    color: var(--t2);
+    margin-top: 4px;
+    font-weight: 500;
+    letter-spacing: .3px;
+}
+.chain-broken-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 14px;
+    background: rgba(255,69,58,.15);
+    border: 1px solid rgba(255,69,58,.35);
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--red);
+    margin-top: 8px;
+}
+.chain-side {
+    min-width: 90px;
+    font-size: 12px;
+    color: var(--t3);
+}
+.chain-side.right { text-align: right; }
 
-    /* ── Chain info ─────────────────────────────────────────────────── */
-    .chain-info {
-        background: #0f3460;
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-        margin-bottom: 16px;
-    }
-    .chain-info .last-card { font-size: 28px; font-weight: 700; color: #4ecdc4; }
-    .chain-info .last-power { color: #a0a0b0; }
-    .chain-info .chain-broken { color: #ff6b6b; font-weight: bold; }
+/* ══════════════════════════════════════════════════════════════════
+   Prompt / power-choice area
+══════════════════════════════════════════════════════════════════ */
+.prompt-panel {
+    background: linear-gradient(135deg, rgba(45,212,191,.08), rgba(45,212,191,.03));
+    border: 1px solid rgba(45,212,191,.3);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    animation: promptIn .25s var(--ease-out);
+}
+@keyframes promptIn {
+    from { opacity:0; transform: translateY(-8px) scale(.98); }
+    to   { opacity:1; transform: translateY(0)     scale(1); }
+}
+.prompt-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: 14px;
+    line-height: 1.3;
+}
+.choices-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice-btn {
+    padding: 9px 18px;
+    background: var(--s3);
+    border: 1px solid var(--border-hi);
+    border-radius: var(--radius-pill);
+    color: var(--t1);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .18s var(--ease-spring);
+    white-space: nowrap;
+    font-family: inherit;
+}
+.choice-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #07070d;
+    transform: scale(1.04);
+}
+.choice-btn:active { transform: scale(.96); }
+.choice-btn.skip-btn {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--t2);
+    font-weight: 500;
+}
+.choice-btn.skip-btn:hover {
+    background: var(--s2);
+    border-color: var(--border-hi);
+    color: var(--t1);
+    transform: scale(1.02);
+}
 
-    /* ── Prompt area ─────────────────────────────────────────────────── */
-    .prompt-area {
-        background: #0f3460;
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-        margin-bottom: 16px;
-    }
-    .prompt-area h3 { color: #ffd93d; margin: 0 0 12px; }
-    .choice-btn {
-        display: inline-block;
-        margin: 5px;
-        padding: 9px 18px;
-        background: #e94560;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 13px;
-        font-weight: 600;
-        transition: background 0.15s;
-    }
-    .choice-btn:hover { background: #c73652; }
-    .choice-btn.secondary {
-        background: #2a2a5a;
-        border: 1px solid #4ecdc4;
-        color: #4ecdc4;
-    }
-    .choice-btn.secondary:hover { background: #1a1a4a; }
+/* ══════════════════════════════════════════════════════════════════
+   Hand cards
+══════════════════════════════════════════════════════════════════ */
+.hand-panel {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    backdrop-filter: blur(12px);
+}
+.hand-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 100px;
+    padding-top: 2px;
+}
+.tribble-card {
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 12px 12px;
+    min-width: 82px;
+    text-align: center;
+    cursor: default;
+    transition: all .22s var(--ease-spring);
+    position: relative;
+    user-select: none;
+}
+.tribble-card.playable {
+    border-color: var(--accent);
+    background: rgba(45,212,191,.07);
+    cursor: pointer;
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 18px rgba(45,212,191,.16);
+}
+.tribble-card.playable:hover {
+    transform: translateY(-7px) scale(1.04);
+    box-shadow: 0 0 0 1.5px var(--accent), 0 14px 32px rgba(45,212,191,.26);
+    z-index: 2;
+}
+.tribble-card.playable:active { transform: translateY(-3px) scale(.98); }
+.tribble-card .denom {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: -1px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.tribble-card .power {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--t2);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+}
+.playable-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+}
+.empty-state {
+    color: var(--t3);
+    font-size: 13px;
+    padding: 20px 0;
+    width: 100%;
+    text-align: center;
+}
 
-    /* ── Game-over banner ────────────────────────────────────────────── */
-    .game-over-banner {
-        background: linear-gradient(135deg, #0f3460, #e94560);
-        border-radius: 12px;
-        padding: 24px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .game-over-banner h2 { color: #ffd93d; font-size: 28px; margin: 0 0 12px; }
+/* ══════════════════════════════════════════════════════════════════
+   Play pile
+══════════════════════════════════════════════════════════════════ */
+.pile-panel {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    backdrop-filter: blur(12px);
+}
+.pile-area { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+.pile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t2);
+    transition: background .15s;
+}
+.pile-chip:last-child {
+    background: rgba(45,212,191,.10);
+    border-color: rgba(45,212,191,.3);
+    color: var(--accent);
+}
+.pile-chip .chip-denom { color: var(--gold); }
 
-    /* ── Log ─────────────────────────────────────────────────────────── */
-    .log-sidebar {
-        background: #0d0d1a;
-        border: 1px solid #0f3460;
-        border-radius: 6px;
-        padding: 8px;
-        max-height: 200px;
-        overflow-y: auto;
-        font-family: monospace;
-        font-size: 11px;
-        line-height: 1.5;
-    }
-    .log-entry { padding: 1px 0; color: #c0c0d0; }
-    .log-entry.play       { color: #4ecdc4; }
-    .log-entry.ai_play    { color: #e98c40; }
-    .log-entry.goes_out   { color: #ffd93d; font-weight: bold; }
-    .log-entry.your_turn  { color: #e94560; font-weight: bold; }
-    .log-entry.poison     { color: #c44dff; }
-    .log-entry.skip       { color: #e9a040; }
-    .log-entry.chain_broken { color: #ff6b6b; }
-    .log-entry.round_start  { color: #4ecdc4; font-weight: bold; }
+/* ══════════════════════════════════════════════════════════════════
+   Game log
+══════════════════════════════════════════════════════════════════ */
+.log-panel {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    backdrop-filter: blur(12px);
+}
+.log-scroll {
+    height: 180px;
+    overflow-y: auto;
+    font-family: "SF Mono", "Fira Code", "Menlo", monospace;
+    font-size: 11.5px;
+    line-height: 1.65;
+    padding-right: 4px;
+}
+.log-entry { color: var(--t2); padding: 0; }
+.log-entry.play         { color: var(--accent); }
+.log-entry.ai_play      { color: var(--amber); }
+.log-entry.goes_out     { color: var(--gold); font-weight: 700; }
+.log-entry.your_turn    { color: var(--rose); font-weight: 700; }
+.log-entry.poison       { color: var(--violet); }
+.log-entry.skip         { color: #94a3b8; }
+.log-entry.chain_broken { color: var(--red); }
+.log-entry.round_start  { color: var(--accent); font-weight: 600; }
+.log-entry.final_score,
+.log-entry.round_end    { color: var(--gold); }
+.log-entry.game_over    { color: var(--rose); font-weight: 700; }
 
-    /* ── Right column ────────────────────────────────────────────────── */
-    .right-column { display: flex; flex-direction: column; gap: 10px; }
+/* ══════════════════════════════════════════════════════════════════
+   Opponent Play Viewer (right panel, shown during AI animation)
+══════════════════════════════════════════════════════════════════ */
+#play-viewer {
+    display: none;
+    background: linear-gradient(160deg, rgba(14,10,40,.95), rgba(7,7,13,.97));
+    border: 1px solid rgba(45,212,191,.35);
+    border-radius: var(--radius-lg);
+    padding: 20px 18px 18px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 0 0 1px rgba(45,212,191,.12),
+                0 8px 32px rgba(0,0,0,.5),
+                0 0 60px rgba(45,212,191,.06);
+    animation: viewerIn .3s var(--ease-out);
+    position: relative;
+    overflow: hidden;
+}
+#play-viewer::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: -40px; right: -40px;
+    height: 120px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(45,212,191,.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+@keyframes viewerIn {
+    from { opacity:0; transform: scale(.96) translateY(-8px); }
+    to   { opacity:1; transform: scale(1)   translateY(0); }
+}
+.pv-eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 3px;
+}
+.pv-player-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--t1);
+    margin-bottom: 14px;
+    letter-spacing: -.2px;
+}
 
-    /* ── Opponent play viewer ────────────────────────────────────────── */
-    #play-viewer {
-        display: none;
-        background: linear-gradient(160deg, #0d1f44, #1a1440);
-        border: 2px solid #4ecdc4;
-        border-radius: 12px;
-        padding: 18px 16px 14px;
-        box-shadow: 0 0 20px rgba(78,205,196,0.25);
-        animation: pvFadeIn 0.25s ease-out;
-    }
-    @keyframes pvFadeIn {
-        from { opacity: 0; transform: translateY(-6px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    #pv-player-name {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #a0a0b0;
-        margin-bottom: 4px;
-    }
-    #pv-action-label {
-        font-size: 16px;
-        font-weight: 700;
-        color: #e94560;
-        margin-bottom: 14px;
-    }
+/* Chain context inside viewer */
+.pv-chain {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.pv-card-mini {
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: center;
+    min-width: 60px;
+    opacity: .65;
+}
+.pv-card-featured {
+    background: rgba(45,212,191,.09);
+    border: 1.5px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+    min-width: 80px;
+    box-shadow: 0 0 20px rgba(45,212,191,.2);
+    animation: cardPop .3s var(--ease-spring);
+}
+@keyframes cardPop {
+    from { transform: scale(.85); opacity:.5; }
+    to   { transform: scale(1);   opacity:1; }
+}
+.pvc-denom {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: -1px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.pv-card-mini .pvc-denom { font-size: 15px; }
+.pvc-power {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--t2);
+    margin-top: 5px;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+}
+.pv-arrow {
+    font-size: 18px;
+    color: rgba(45,212,191,.5);
+    flex-shrink: 0;
+}
 
-    /* Card display within viewer */
-    .pv-chain-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        margin-bottom: 12px;
-    }
-    .pv-mini-card {
-        background: #16213e;
-        border: 1px solid #2a3a6a;
-        border-radius: 6px;
-        padding: 6px 10px;
-        text-align: center;
-        min-width: 56px;
-        opacity: 0.7;
-    }
-    .pv-main-card {
-        background: #16213e;
-        border: 2px solid #4ecdc4;
-        border-radius: 8px;
-        padding: 12px 14px;
-        text-align: center;
-        min-width: 72px;
-        box-shadow: 0 0 16px rgba(78,205,196,0.4);
-    }
-    .pv-card-denom      { font-size: 22px; font-weight: 700; color: #ffd93d; }
-    .pv-mini-card .pv-card-denom { font-size: 14px; }
-    .pv-card-power      { font-size: 11px; color: #a0a0b0; margin-top: 3px; }
-    .pv-arrow           { color: #4ecdc4; font-size: 22px; font-weight: bold; }
+/* Notice line (draw / skip / chain-broken) */
+.pv-notice {
+    background: rgba(251,146,60,.08);
+    border: 1px solid rgba(251,146,60,.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--amber);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
 
-    /* Notice row (draw / skip / chain-broken events) */
-    .pv-notice {
-        background: #16213e;
-        border: 1px solid #e98c40;
-        border-radius: 6px;
-        padding: 10px 12px;
-        color: #e98c40;
-        font-size: 13px;
-        text-align: center;
-        margin-bottom: 8px;
-    }
+/* Effects */
+.pv-effects {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--t2);
+    line-height: 1.65;
+    min-height: 18px;
+    white-space: pre-line;
+}
 
-    /* Effects list */
-    #pv-effects {
-        margin-top: 10px;
-        padding-top: 8px;
-        border-top: 1px solid #1a3a6a;
-        font-size: 12px;
-        color: #ffd93d;
-        min-height: 16px;
-        white-space: pre-line;
-        line-height: 1.6;
-    }
+/* Progress dots */
+.pv-dots {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 12px;
+}
+.pv-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border-hi);
+    transition: all .25s;
+}
+.pv-dot.on {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    width: 14px;
+    border-radius: 3px;
+}
 
-    /* Progress dots */
-    #pv-progress {
-        margin-top: 10px;
-        text-align: center;
-        font-size: 11px;
-        color: #505070;
-    }
-    #pv-progress .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #2a3a6a; margin: 0 2px; }
-    #pv-progress .dot.active { background: #4ecdc4; }
+/* ══════════════════════════════════════════════════════════════════
+   Player sidebar cards
+══════════════════════════════════════════════════════════════════ */
+.players-panel { display: flex; flex-direction: column; gap: 10px; }
+.player-card {
+    background: var(--s1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    backdrop-filter: blur(12px);
+    transition: border-color .2s;
+}
+.player-card.is-human { border-color: rgba(45,212,191,.35); }
+.player-card.is-human .pc-name-row { color: var(--accent); }
+.pc-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.pc-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--t1);
+    letter-spacing: -.1px;
+}
+.pc-you-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: var(--radius-pill);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+}
+.pc-score {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+}
+.pc-stats {
+    font-size: 11px;
+    color: var(--t3);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.pc-stat-item { display: flex; gap: 3px; }
+.pc-stat-label { color: var(--t3); }
+.pc-stat-val   { color: var(--t2); font-weight: 600; }
+.pc-pile-top {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 9px;
+    padding-top: 9px;
+    border-top: 1px solid var(--border);
+}
+.pc-pile-label { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: .6px; }
+.pc-pile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t2);
+}
+.pc-pile-chip .chip-d { color: var(--gold); }
 
-    /* ── Players sidebar ─────────────────────────────────────────────── */
-    .players-sidebar { display: flex; flex-direction: column; gap: 8px; }
-    .player-info {
-        background: #16213e;
-        border: 1px solid #0f3460;
-        border-radius: 6px;
-        padding: 10px 12px;
-    }
-    .player-info.human         { border-color: #4ecdc4; }
-    .player-info.active-player { border-color: #e98c40; }
-    .player-info .pi-name  { font-weight: 600; color: #e94560; font-size: 13px; }
-    .player-info .pi-stats { font-size: 11px; color: #a0a0b0; margin-top: 3px; }
-    .player-info .pi-score { font-size: 12px; color: #ffd93d; margin-top: 2px; }
-    .pi-pile-top {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-top: 7px;
-        padding-top: 7px;
-        border-top: 1px solid #1a2a4a;
-    }
-    .pi-pile-label { font-size: 10px; color: #505070; }
-    .pi-pile-card {
-        background: #0d0d1a;
-        border: 1px solid #0f3460;
-        border-radius: 4px;
-        padding: 3px 7px;
-        font-size: 11px;
-        color: #c0c0d0;
-    }
+/* ══════════════════════════════════════════════════════════════════
+   Game-over banner
+══════════════════════════════════════════════════════════════════ */
+.game-over-banner {
+    background: linear-gradient(135deg, rgba(45,212,191,.12), rgba(251,191,36,.08));
+    border: 1px solid rgba(45,212,191,.3);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    text-align: center;
+    margin-bottom: 20px;
+    backdrop-filter: blur(20px);
+}
+.game-over-banner h2 {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--t1);
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+}
+.go-scores { display: flex; flex-direction: column; gap: 6px; }
+.go-score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--s2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+.go-score-row .name { font-weight: 600; color: var(--t1); }
+.go-score-row .pts  { font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="game-container">
-    <div class="card" style="text-align:center;padding:40px">Loading game…</div>
+    <div class="card" style="text-align:center;padding:48px">
+        <div style="font-size:15px;color:var(--t2)">Loading game…</div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const gameId = "{{ game_id }}";
-
-/* ── Animation state ─────────────────────────────────────────────── */
 let animating = false;
 
-/* ── Fetch initial state ─────────────────────────────────────────── */
+/* ── Fetch ─────────────────────────────────────────────────────── */
 function fetchState() {
     fetch(`/api/interactive/${gameId}/state`)
         .then(r => r.json())
         .then(data => {
             if (data.error) {
-                document.getElementById('game-container').innerHTML = '<div class="card">Game not found.</div>';
+                document.getElementById('game-container').innerHTML =
+                    '<div class="card" style="text-align:center;padding:48px;color:var(--t2)">Game not found.</div>';
                 return;
             }
             render(data);
@@ -276,7 +580,7 @@ function fetchState() {
         .catch(() => setTimeout(fetchState, 2000));
 }
 
-/* ── Play a card / submit a choice ──────────────────────────────── */
+/* ── Submit a card or choice ───────────────────────────────────── */
 function playCard(cardIndex) {
     if (animating) return;
     fetch(`/api/interactive/${gameId}/play`, {
@@ -287,286 +591,286 @@ function playCard(cardIndex) {
     .then(r => r.json())
     .then(data => {
         if (data.error) { render(data); return; }
-
-        // Power-choice / roll-mulligan / bah prompts need no animation
-        const waitingModes = new Set(['power_choice', 'roll_mulligan', 'bah_choice']);
-        if (waitingModes.has(data.input_mode)) {
-            render(data);
-            return;
-        }
-
-        const events = data.events_since_human_play || [];
-        const moments = buildMoments(events);
-        if (moments.length === 0) {
-            render(data);
-            return;
-        }
+        const pauseModes = new Set(['power_choice','roll_mulligan','bah_choice']);
+        if (pauseModes.has(data.input_mode)) { render(data); return; }
+        const moments = buildMoments(data.events_since_human_play || []);
+        if (!moments.length) { render(data); return; }
         animateMoments(moments, data);
     });
 }
 
-/* ── Build display moments from event list ───────────────────────── */
-/*
-   Moments are of two kinds:
-   - 'play'   : an ai_play event + any immediately-following effect events
-   - 'notice' : a standalone event (draw, skip, chain_broken, etc.)
-*/
-const EFFECT_TYPES = new Set(['info', 'poison', 'goes_out', 'decked', 'round_end', 'round_start', 'final_score', 'game_over']);
-const NOTICE_TYPES = new Set(['draw', 'chain_broken', 'skip']);
-const SKIP_TYPES   = new Set(['status', 'your_turn']);
+/* ── Build moment list from event stream ───────────────────────── */
+const NOTICE_T  = new Set(['draw','chain_broken','skip','decked']);
+const EFFECT_T  = new Set(['info','poison','goes_out','round_end','round_start','final_score','game_over']);
+const SKIP_T    = new Set(['status','your_turn']);
 
 function buildMoments(events) {
     const moments = [];
-    let current = null;
-
+    let cur = null;
     for (const e of events) {
-        if (SKIP_TYPES.has(e.type)) continue;
-
+        if (SKIP_T.has(e.type)) continue;
         if (e.type === 'ai_play') {
-            if (current) moments.push(current);
-            current = { kind: 'play', event: e, effects: [] };
-        } else if (NOTICE_TYPES.has(e.type)) {
-            if (current && current.kind === 'play') {
-                // draw after a play means they drew THEN played — treat as effect
-                current.effects.push(e);
-            } else {
-                if (current) moments.push(current);
-                current = { kind: 'notice', event: e };
-            }
-        } else if (EFFECT_TYPES.has(e.type)) {
-            if (current) {
-                current.effects = current.effects || [];
-                current.effects.push(e);
-            } else {
-                // standalone effect with no preceding play
-                current = { kind: 'notice', event: e };
-            }
+            if (cur) moments.push(cur);
+            cur = { kind:'play', ev:e, effects:[] };
+        } else if (NOTICE_T.has(e.type)) {
+            if (cur && cur.kind === 'play') { cur.effects.push(e); }
+            else { if (cur) moments.push(cur); cur = { kind:'notice', ev:e, effects:[] }; }
+        } else if (EFFECT_T.has(e.type)) {
+            if (cur) cur.effects.push(e);
+            else { cur = { kind:'notice', ev:e, effects:[] }; }
         }
     }
-    if (current) moments.push(current);
+    if (cur) moments.push(cur);
     return moments;
 }
 
-/* ── Parse "Name plays 100 Go" ───────────────────────────────────── */
-function parsePlay(message) {
-    const m = message.match(/^(.+?) plays (\S+)\s+(.+)$/);
-    if (m) return { player: m[1], denomination: m[2], power: m[3] };
-    return null;
+function parsePlay(msg) {
+    const m = msg.match(/^(.+?) plays (\S+)\s+(.+)$/);
+    return m ? { player:m[1], denom:m[2], power:m[3] } : null;
 }
 
-/* ── Show the play-viewer panel ──────────────────────────────────── */
-function showPlayViewer(moment, lastCard, momentIndex, totalMoments) {
-    const viewer = document.getElementById('play-viewer');
+/* ── Show one moment in the viewer ────────────────────────────── */
+function showMoment(moment, lastCard, idx, total) {
+    const vw = document.getElementById('play-viewer');
+
+    const chainEl    = document.getElementById('pv-chain');
+    const prevWrap   = document.getElementById('pv-prev-wrap');
+    const arrowEl    = document.getElementById('pv-arrow');
+    const noticeEl   = document.getElementById('pv-notice');
+    const effectsEl  = document.getElementById('pv-effects');
+    const eyebrow    = document.getElementById('pv-eyebrow');
+    const nameEl     = document.getElementById('pv-player-name');
 
     if (moment.kind === 'play') {
-        const parsed = parsePlay(moment.event.message);
-        if (!parsed) return lastCard;
+        const p = parsePlay(moment.ev.message);
+        if (!p) return lastCard;
 
-        document.getElementById('pv-player-name').textContent = parsed.player;
-        document.getElementById('pv-action-label').textContent = 'plays ' + parsed.denomination + ' ' + parsed.power;
+        eyebrow.textContent = 'Opponent plays';
+        nameEl.textContent  = p.player;
 
-        // Chain context row
-        const chainRow = document.getElementById('pv-chain-row');
-        const prevWrap = document.getElementById('pv-prev-wrap');
+        // Prev card context
         if (lastCard) {
             document.getElementById('pv-prev-denom').textContent = lastCard.denomination;
             document.getElementById('pv-prev-power').textContent = lastCard.power;
             prevWrap.style.display = '';
-            document.getElementById('pv-arrow').style.display = '';
+            arrowEl.style.display  = '';
         } else {
             prevWrap.style.display = 'none';
-            document.getElementById('pv-arrow').style.display = 'none';
+            arrowEl.style.display  = 'none';
         }
-        document.getElementById('pv-new-denom').textContent = parsed.denomination;
-        document.getElementById('pv-new-power').textContent = parsed.power;
-        chainRow.style.display = 'flex';
+        document.getElementById('pv-feat-denom').textContent = p.denom;
+        document.getElementById('pv-feat-power').textContent = p.power;
+        chainEl.style.display  = 'flex';
+        noticeEl.style.display = 'none';
 
-        // Notice hidden
-        document.getElementById('pv-notice').style.display = 'none';
+        const effectText = (moment.effects || []).map(e => e.message.trim()).join('\n');
+        effectsEl.textContent = effectText;
+        effectsEl.style.display = effectText ? '' : 'none';
 
-        // Effects
-        const effectLines = (moment.effects || []).map(e => e.message.trim()).join('\n');
-        document.getElementById('pv-effects').textContent = effectLines;
+        renderDots(idx, total);
+        vw.style.display = 'block';
+        return { denomination: p.denom, power: p.power };
 
-        // Progress dots
-        renderDots(momentIndex, totalMoments);
-        viewer.style.display = 'block';
-
-        return { denomination: parsed.denomination, power: parsed.power };
     } else {
-        // Notice (draw, skip, chain_broken…)
-        document.getElementById('pv-player-name').textContent = '';
-        document.getElementById('pv-action-label').textContent = '';
-        document.getElementById('pv-chain-row').style.display = 'none';
-        const notice = document.getElementById('pv-notice');
-        notice.textContent = moment.event.message;
-        notice.style.display = 'block';
-        document.getElementById('pv-effects').textContent =
-            (moment.effects || []).map(e => e.message.trim()).join('\n');
-        renderDots(momentIndex, totalMoments);
-        viewer.style.display = 'block';
+        eyebrow.textContent = '';
+        nameEl.textContent  = '';
+        chainEl.style.display  = 'none';
+        noticeEl.textContent   = moment.ev.message;
+        noticeEl.style.display = '';
+        const effectText = (moment.effects || []).map(e => e.message.trim()).join('\n');
+        effectsEl.textContent = effectText;
+        effectsEl.style.display = effectText ? '' : 'none';
+        renderDots(idx, total);
+        vw.style.display = 'block';
         return lastCard;
     }
 }
 
 function renderDots(active, total) {
-    if (total <= 1) { document.getElementById('pv-progress').innerHTML = ''; return; }
-    let html = '';
-    for (let i = 0; i < total; i++) {
-        html += `<span class="dot${i === active ? ' active' : ''}"></span>`;
-    }
-    document.getElementById('pv-progress').innerHTML = html;
+    const el = document.getElementById('pv-dots');
+    if (total <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = Array.from({length:total}, (_,i) =>
+        `<div class="pv-dot${i===active?' on':''}"></div>`
+    ).join('');
 }
 
-function hidePlayViewer() {
-    document.getElementById('play-viewer').style.display = 'none';
-}
+function hideViewer() { document.getElementById('play-viewer').style.display = 'none'; }
 
-/* ── Step through all moments, then render final state ───────────── */
-function animateMoments(moments, stateData) {
-    if (moments.length === 0) { render(stateData); return; }
-
+/* ── Animate all moments, then render ─────────────────────────── */
+function animateMoments(moments, state) {
+    if (!moments.length) { render(state); return; }
     animating = true;
     let i = 0;
-    let lastCard = stateData.chain_before_ai || null;
-
+    let lastCard = state.chain_before_ai || null;
     function next() {
-        if (i >= moments.length) {
-            hidePlayViewer();
-            animating = false;
-            render(stateData);
-            return;
-        }
-        const moment = moments[i];
-        lastCard = showPlayViewer(moment, lastCard, i, moments.length);
+        if (i >= moments.length) { hideViewer(); animating = false; render(state); return; }
+        const m = moments[i];
+        lastCard = showMoment(m, lastCard, i, moments.length);
         i++;
-        const delay = moment.kind === 'play' ? 3000 : 1500;
-        setTimeout(next, delay);
+        setTimeout(next, m.kind === 'play' ? 3000 : 1600);
     }
     next();
 }
 
-/* ── Render full game state ──────────────────────────────────────── */
+/* ── Full render ───────────────────────────────────────────────── */
 function render(state) {
     let html = '';
 
+    /* Game-over banner */
     if (state.game_over) {
-        html += '<div class="game-over-banner"><h2>Game Over!</h2>';
-        (state.players || []).forEach(p => {
-            html += `<div style="color:white;font-size:17px;margin:4px">${p.name}: ${p.score.toLocaleString()} pts</div>`;
+        const sorted = [...(state.players||[])].sort((a,b) => b.score - a.score);
+        html += '<div class="game-over-banner">';
+        html += '<h2>Game Over</h2>';
+        html += '<div class="go-scores">';
+        sorted.forEach((p,i) => {
+            const medal = i===0 ? '🥇 ' : i===1 ? '🥈 ' : i===2 ? '🥉 ' : '';
+            html += `<div class="go-score-row">
+                <span class="name">${medal}${p.name}</span>
+                <span class="pts">${p.score.toLocaleString()} pts</span>
+            </div>`;
         });
-        html += '</div>';
+        html += '</div></div>';
     }
 
     html += '<div class="game-layout">';
 
-    /* ── Left: main play area ── */
-    html += '<div class="main-area">';
+    /* ─── Left column ─────────────────────────────────────────── */
+    html += '<div class="main-col">';
 
-    // Chain info
-    html += '<div class="chain-info">';
-    html += `<div style="color:#a0a0b0;font-size:12px">Round ${state.round}</div>`;
-    if (state.last_card) {
-        html += `<div class="last-card">${state.last_card.denomination}</div>`;
-        html += `<div class="last-power">${state.last_card.power}</div>`;
-    } else {
-        html += '<div class="last-card">Start</div>';
-        html += '<div class="last-power">Play a 1-denomination card to begin</div>';
-    }
+    /* Chain hero */
+    html += '<div class="chain-hero">';
+    html += '<div class="chain-side">';
     if (state.chain_broken) {
-        html += '<div class="chain-broken">⚡ Chain Broken — play a 1 or Advance</div>';
+        html += '<span class="chain-broken-pill">⚡ Chain Broken</span>';
     }
     html += '</div>';
+    html += '<div class="chain-center">';
+    html += `<div class="chain-round-pill">Round ${state.round}</div>`;
+    if (state.last_card) {
+        html += `<div class="chain-denom">${state.last_card.denomination}</div>`;
+        html += `<div class="chain-power">${state.last_card.power}</div>`;
+    } else {
+        html += '<div class="chain-start">—</div>';
+        html += '<div class="chain-power">Play a 1 to start the chain</div>';
+    }
+    html += '</div>';
+    html += '<div class="chain-side right"></div>';
+    html += '</div>';
 
-    // Prompt
+    /* Prompt */
     if (state.waiting_for_input && !state.game_over) {
-        html += '<div class="prompt-area">';
-        html += `<h3>${state.input_prompt}</h3>`;
+        html += '<div class="prompt-panel">';
+        html += `<div class="prompt-title">${state.input_prompt}</div>`;
+        html += '<div class="choices-row">';
         (state.input_choices || []).forEach(c => {
             const isSkip = c.index === -1;
-            html += `<button class="choice-btn${isSkip ? ' secondary' : ''}" onclick="playCard(${c.index})">${c.label}</button>`;
+            html += `<button class="choice-btn${isSkip?' skip-btn':''}"
+                             onclick="playCard(${c.index})">${c.label}</button>`;
         });
-        html += '</div>';
+        html += '</div></div>';
     }
 
-    // Your hand
-    const playableSet = new Set((state.input_choices || []).map(c => c.index));
-    html += '<div class="card"><h3>Your Hand</h3><div class="hand-area">';
-    (state.hand || []).forEach((card, idx) => {
-        const ok = state.waiting_for_input && state.input_mode === 'play_card' && playableSet.has(idx);
-        html += `<div class="tribble-card${ok ? ' playable' : ''}" ${ok ? `onclick="playCard(${idx})"` : ''}>`;
-        html += `<div class="denom">${card.denomination}</div>`;
-        html += `<div class="power">${card.power}</div>`;
-        html += '</div>';
-    });
-    if (!state.hand || state.hand.length === 0) {
-        html += '<div style="color:#666;padding:20px">Empty</div>';
-    }
-    html += '</div></div>';
-
-    // Your play pile
-    html += '<div class="card"><h3>Your Play Pile</h3><div class="pile-cards">';
-    (state.play_pile || []).forEach(card => {
-        html += `<span class="pile-card">${card.denomination} ${card.power}</span>`;
-    });
-    if (!state.play_pile || state.play_pile.length === 0) {
-        html += '<span style="color:#666">Empty</span>';
+    /* Hand */
+    const playableSet = new Set(
+        (state.input_mode === 'play_card' && state.waiting_for_input)
+            ? (state.input_choices||[]).map(c=>c.index)
+            : []
+    );
+    html += '<div class="hand-panel"><div class="sec-label">Your Hand</div><div class="hand-area">';
+    if (state.hand && state.hand.length) {
+        state.hand.forEach((card,idx) => {
+            const ok = playableSet.has(idx);
+            html += `<div class="tribble-card${ok?' playable':''}"${ok?` onclick="playCard(${idx})"`:''}>`;
+            if (ok) html += '<div class="playable-dot"></div>';
+            html += `<div class="denom">${card.denomination}</div>`;
+            html += `<div class="power">${card.power}</div>`;
+            html += '</div>';
+        });
+    } else {
+        html += '<div class="empty-state">No cards in hand</div>';
     }
     html += '</div></div>';
 
-    // Game log
-    html += '<div class="card"><h3>Game Log</h3><div class="log-sidebar" id="log-area">';
-    (state.log || []).forEach(entry => {
-        html += `<div class="log-entry ${entry.type || ''}">${entry.message}</div>`;
+    /* Play pile */
+    html += '<div class="pile-panel"><div class="sec-label">Your Play Pile</div><div class="pile-area">';
+    if (state.play_pile && state.play_pile.length) {
+        state.play_pile.forEach(c => {
+            html += `<span class="pile-chip"><span class="chip-denom">${c.denomination}</span>${c.power}</span>`;
+        });
+    } else {
+        html += '<span style="color:var(--t3);font-size:12px">Empty</span>';
+    }
+    html += '</div></div>';
+
+    /* Log */
+    html += '<div class="log-panel"><div class="sec-label">Game Log</div><div class="log-scroll" id="log-area">';
+    (state.log||[]).forEach(e => {
+        html += `<div class="log-entry ${e.type||''}">${e.message}</div>`;
     });
     html += '</div></div>';
 
-    html += '</div>'; /* end main-area */
+    html += '</div>'; /* end main-col */
 
-    /* ── Right: play viewer + player sidebar ── */
-    html += '<div class="right-column">';
+    /* ─── Right column ────────────────────────────────────────── */
+    html += '<div class="right-col">';
 
-    // Play viewer (kept in DOM; shown/hidden by animation)
+    /* Play viewer (kept in DOM — shown by animation, hidden when idle) */
     html += `
     <div id="play-viewer">
-        <div id="pv-player-name"></div>
-        <div id="pv-action-label"></div>
-        <div class="pv-chain-row" id="pv-chain-row">
-            <div class="pv-mini-card" id="pv-prev-wrap">
-                <div class="pv-card-denom" id="pv-prev-denom"></div>
-                <div class="pv-card-power" id="pv-prev-power">was</div>
+        <div class="pv-eyebrow" id="pv-eyebrow">Opponent plays</div>
+        <div class="pv-player-name" id="pv-player-name"></div>
+
+        <div class="pv-chain" id="pv-chain" style="display:none">
+            <div class="pv-card-mini" id="pv-prev-wrap">
+                <div class="pvc-denom" id="pv-prev-denom"></div>
+                <div class="pvc-power">was</div>
             </div>
             <div class="pv-arrow" id="pv-arrow">→</div>
-            <div class="pv-main-card">
-                <div class="pv-card-denom" id="pv-new-denom"></div>
-                <div class="pv-card-power" id="pv-new-power"></div>
+            <div class="pv-card-featured">
+                <div class="pvc-denom" id="pv-feat-denom"></div>
+                <div class="pvc-power" id="pv-feat-power"></div>
             </div>
         </div>
+
         <div class="pv-notice" id="pv-notice" style="display:none"></div>
-        <div id="pv-effects"></div>
-        <div id="pv-progress"></div>
+        <div class="pv-effects" id="pv-effects" style="display:none"></div>
+        <div class="pv-dots" id="pv-dots"></div>
     </div>`;
 
-    // Player sidebar
-    html += '<div class="players-sidebar">';
-    (state.players || []).forEach(p => {
-        html += `<div class="player-info${p.is_human ? ' human' : ''}">`;
-        html += `<div class="pi-name">${p.name}${p.is_human ? ' <span style="color:#4ecdc4">(You)</span>' : ''}</div>`;
-        html += `<div class="pi-stats">Hand: ${p.hand_count} &nbsp;|&nbsp; Pile: ${p.pile_count} &nbsp;|&nbsp; Deck: ${p.deck_count} &nbsp;|&nbsp; Discard: ${p.discard_count}</div>`;
-        html += `<div class="pi-score">Score: <strong>${p.score.toLocaleString()}</strong></div>`;
+    /* Players sidebar */
+    html += '<div class="players-panel">';
+    (state.players||[]).forEach(p => {
+        html += `<div class="player-card${p.is_human?' is-human':''}">`;
+        html += '<div class="pc-name-row">';
+        html += `<span class="pc-name">${p.name}</span>`;
+        if (p.is_human) {
+            html += '<span class="pc-you-badge">You</span>';
+        }
+        html += '</div>';
+        html += `<div class="pc-score">${p.score.toLocaleString()} pts</div>`;
+        html += `<div class="pc-stats" style="margin-top:6px">`;
+        html += `<span class="pc-stat-item"><span class="pc-stat-label">Hand</span><span class="pc-stat-val">${p.hand_count}</span></span>`;
+        html += `<span class="pc-stat-item"><span class="pc-stat-label">Pile</span><span class="pc-stat-val">${p.pile_count}</span></span>`;
+        html += `<span class="pc-stat-item"><span class="pc-stat-label">Deck</span><span class="pc-stat-val">${p.deck_count}</span></span>`;
+        html += `<span class="pc-stat-item"><span class="pc-stat-label">Disc</span><span class="pc-stat-val">${p.discard_count}</span></span>`;
+        html += '</div>';
         if (!p.is_human && p.pile_top) {
-            html += `<div class="pi-pile-top"><span class="pi-pile-label">Top card:</span><span class="pi-pile-card">${p.pile_top.denomination} ${p.pile_top.power}</span></div>`;
+            html += `<div class="pc-pile-top">
+                <span class="pc-pile-label">Top</span>
+                <span class="pc-pile-chip">
+                    <span class="chip-d">${p.pile_top.denomination}</span>${p.pile_top.power}
+                </span>
+            </div>`;
         }
         html += '</div>';
     });
-    html += '</div>'; /* end players-sidebar */
+    html += '</div>'; /* end players-panel */
 
-    html += '</div>'; /* end right-column */
+    html += '</div>'; /* end right-col */
     html += '</div>'; /* end game-layout */
 
     document.getElementById('game-container').innerHTML = html;
 
-    // Scroll log to bottom
     const logArea = document.getElementById('log-area');
     if (logArea) logArea.scrollTop = logArea.scrollHeight;
 }

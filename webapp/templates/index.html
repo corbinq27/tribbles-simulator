@@ -3,45 +3,66 @@
 
 {% block extra_css %}
 <style>
-    .mode-tabs { display: flex; gap: 12px; margin-bottom: 24px; }
+    .mode-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
     .mode-tab {
-        padding: 12px 24px;
-        background: #16213e;
-        border: 2px solid #0f3460;
-        border-radius: 8px 8px 0 0;
+        padding: 9px 20px;
+        background: var(--s2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-pill);
         cursor: pointer;
-        color: #a0a0b0;
+        color: var(--t2);
+        font-size: 14px;
         font-weight: 600;
+        transition: all .18s;
+        user-select: none;
     }
-    .mode-tab.active { background: #0f3460; color: #e94560; border-bottom-color: #0f3460; }
+    .mode-tab.active {
+        background: var(--accent-dim);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+    .mode-tab:not(.active):hover { background: var(--s3); color: var(--t1); }
     .mode-panel { display: none; }
     .mode-panel.active { display: block; }
-    .player-config { display: flex; gap: 12px; align-items: end; margin-bottom: 8px; }
-    .player-config input, .player-config select { flex: 1; }
-    .speed-slider { width: 200px; }
-    .upload-section { margin-top: 24px; }
+    .player-config {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        margin-bottom: 10px;
+        padding: 12px;
+        background: var(--s2);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+    }
+    .player-config .form-group { margin-bottom: 0; flex: 1; }
+    .speed-slider { width: 180px; }
+    .upload-section { margin-top: 0; }
+    .meta-row { display: flex; gap: 20px; flex-wrap: wrap; }
+    .meta-row .form-group { min-width: 140px; }
+    select option { background: #16213e; }
 </style>
 {% endblock %}
 
 {% block content %}
-<h1>Tribbles Card Game Simulator</h1>
+<div style="margin-bottom:28px">
+    <h1 style="margin-bottom:4px">Tribbles Simulator</h1>
+    <p>Play or simulate the Tribbles card game with AI opponents.</p>
+</div>
 
 <div class="mode-tabs">
-    <div class="mode-tab active" onclick="switchMode('simulate')">Simulation Mode</div>
-    <div class="mode-tab" onclick="switchMode('interactive')">Interactive Mode</div>
+    <div class="mode-tab active" onclick="switchMode('simulate',this)">Simulation</div>
+    <div class="mode-tab" onclick="switchMode('interactive',this)">Play Interactive</div>
 </div>
 
 <!-- SIMULATION MODE -->
 <div id="panel-simulate" class="mode-panel active">
     <div class="card">
-        <h2>Run Simulation</h2>
-        <p style="margin-bottom:16px;color:#a0a0b0">
-            Configure players, decks, and games. Watch the simulation unfold at your chosen speed.
-        </p>
+        <h2>Run a Simulation</h2>
+        <p style="margin-bottom:20px">Configure players, decks and watch the AI battle it out.</p>
         <form method="POST" action="/simulate" id="sim-form">
-            <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div class="meta-row">
                 <div class="form-group">
-                    <label>Number of Players</label>
+                    <label>Players</label>
                     <select name="num_players" id="sim-num-players" onchange="updateSimPlayers()">
                         <option value="2" selected>2</option>
                         <option value="3">3</option>
@@ -51,22 +72,22 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Number of Games</label>
-                    <input type="number" name="num_games" value="1" min="1" max="100">
+                    <label>Games</label>
+                    <input type="number" name="num_games" value="1" min="1" max="100" style="width:80px">
                 </div>
                 <div class="form-group">
-                    <label>Rounds per Game</label>
-                    <input type="number" name="num_rounds" value="5" min="1" max="20">
+                    <label>Rounds / Game</label>
+                    <input type="number" name="num_rounds" value="5" min="1" max="20" style="width:80px">
                 </div>
                 <div class="form-group">
-                    <label>Playback Speed (plays/sec)</label>
+                    <label>Speed — <span id="speed-val" style="color:var(--accent)">10</span> plays/sec</label>
                     <input type="range" name="speed" min="1" max="10000" value="10" class="speed-slider"
-                           oninput="document.getElementById('speed-val').textContent=this.value" id="speed-input">
-                    <span id="speed-val">10</span> plays/sec
+                           oninput="document.getElementById('speed-val').textContent=this.value">
                 </div>
             </div>
+            <div class="divider"></div>
             <div id="sim-players"></div>
-            <button type="submit" class="btn" style="margin-top:16px">Start Simulation</button>
+            <button type="submit" class="btn" style="margin-top:20px">Start Simulation</button>
         </form>
     </div>
 </div>
@@ -74,14 +95,12 @@
 <!-- INTERACTIVE MODE -->
 <div id="panel-interactive" class="mode-panel">
     <div class="card">
-        <h2>Play Interactive Game</h2>
-        <p style="margin-bottom:16px;color:#a0a0b0">
-            Play against computer opponents. You make all the card choices.
-        </p>
+        <h2>Play Against AI</h2>
+        <p style="margin-bottom:20px">You make every decision. AI opponents play optimally.</p>
         <form method="POST" action="/interactive" id="int-form">
-            <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div class="meta-row">
                 <div class="form-group">
-                    <label>Total Players (including you)</label>
+                    <label>Total Players</label>
                     <select name="num_players" id="int-num-players" onchange="updateIntPlayers()">
                         <option value="2" selected>2</option>
                         <option value="3">3</option>
@@ -89,26 +108,27 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Rounds per Game</label>
-                    <input type="number" name="num_rounds" value="5" min="1" max="20">
+                    <label>Rounds / Game</label>
+                    <input type="number" name="num_rounds" value="5" min="1" max="20" style="width:80px">
+                </div>
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" name="human_name" value="You" style="width:140px">
                 </div>
             </div>
-            <div class="form-group">
-                <label>Your Name</label>
-                <input type="text" name="human_name" value="You">
-            </div>
+            <div class="divider"></div>
             <div id="int-players"></div>
-            <button type="submit" class="btn" style="margin-top:16px">Start Game</button>
+            <button type="submit" class="btn" style="margin-top:20px">Start Game</button>
         </form>
     </div>
 </div>
 
 <!-- UPLOAD -->
-<div class="card upload-section">
-    <h3>Upload Deck</h3>
-    <form method="POST" action="/upload_deck" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:end">
+<div class="card">
+    <h3>Upload a Deck File</h3>
+    <form method="POST" action="/upload_deck" enctype="multipart/form-data" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
         <div class="form-group" style="margin-bottom:0">
-            <label>Deck File (.json)</label>
+            <label>Deck (.json)</label>
             <input type="file" name="deck_file" accept=".json">
         </div>
         <button type="submit" class="btn btn-secondary">Upload</button>
@@ -167,10 +187,10 @@ function updateIntPlayers() {
     document.getElementById('int-players').innerHTML = html;
 }
 
-function switchMode(mode) {
+function switchMode(mode, el) {
     document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
-    event.target.classList.add('active');
+    el.classList.add('active');
     document.getElementById('panel-' + mode).classList.add('active');
 }
 
